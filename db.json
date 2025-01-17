@@ -1,0 +1,10 @@
+{
+    "vms": [
+      { "id": 1, "name": "VM 1", "cpu": 45, "memory": 60, "status": "Running" },
+      { "id": 2, "name": "VM 2", "cpu": 45, "memory": 70, "status": "Idle" },
+      { "id": 3, "name": "VM 3", "cpu": 85, "memory": 90, "status": "Critical" },
+      { "id": 4, "name": "VM 4", "cpu": 20, "memory": 30, "status": "Idle" },
+      { "id": 5, "name": "VM 5", "cpu": 50, "memory": 40, "status": "Running" }
+    ]
+  }
+  

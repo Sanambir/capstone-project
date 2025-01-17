@@ -1,0 +1,131 @@
+/* src/App.css */
+
+body {
+  margin: 0;
+  font-family: 'Roboto', sans-serif;
+  background-color: #f0f2f5;
+  color: #333;
+}
+
+.App {
+  display: flex;
+  height: 100vh;
+}
+
+.Sidebar {
+  width: 200px;
+  background-color: #212529;
+  color: white;
+  padding: 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 15px;
+}
+
+.Sidebar ul {
+  list-style: none;
+  padding: 0;
+}
+
+.Sidebar li {
+  margin: 10px 0;
+  cursor: pointer;
+}
+
+.Sidebar li:hover {
+  color: #17a2b8;
+}
+
+.content {
+  flex: 1;
+  padding: 20px;
+  overflow-y: auto;
+  background-color: white;
+  border-radius: 8px;
+  margin: 20px;
+}
+
+h1, h2 {
+  margin: 0;
+  padding-bottom: 10px;
+  border-bottom: 2px solid #dee2e6;
+}
+
+p {
+  margin: 10px 0;
+}
+
+/* Add styles for the header */
+.header {
+  width: 100%;
+  padding: 15px 20px;
+  background-color: #343a40;
+  color: white;
+  text-align: center;
+  font-size: 1.5rem;
+}
+
+/* App.css */
+.Sidebar .active {
+  font-weight: bold;
+  color: #17a2b8;
+}
+
+/* App.css */
+.Sidebar a {
+  text-decoration: none; /* Remove underline */
+  color: white; /* Default color for links */
+}
+
+.Sidebar a:hover {
+  color: #17a2b8; /* Color on hover */
+}
+
+.Sidebar a:visited {
+  color: white; /* Keep the same color for visited links */
+}
+
+.Sidebar .active {
+  font-weight: bold; /* Highlight active link */
+  color: #17a2b8; /* Active link color */
+}
+
+/* Tables */
+table {
+  border: 1px solid #ccc;
+  margin-top: 20px;
+}
+
+th, td {
+  padding: 10px;
+  text-align: left;
+}
+
+th {
+  background-color: #f4f4f4;
+}
+
+tbody tr:nth-child(even) {
+  background-color: #f9f9f9;
+}
+
+/* buttons */
+button {
+  padding: 5px 10px;
+  margin: 0 5px;
+  border: 1px solid #ccc;
+  background-color: #f8f9fa;
+  cursor: pointer;
+  text-align: center;
+}
+
+button:hover {
+  background-color: #e2e6ea;
+}
+
+button:disabled {
+  background-color: #ddd;
+  cursor: not-allowed;
+}
+
+
