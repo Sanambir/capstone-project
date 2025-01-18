@@ -1,10 +1,29 @@
 {
-    "vms": [
-      { "id": 1, "name": "VM 1", "cpu": 45, "memory": 60, "status": "Running" },
-      { "id": 2, "name": "VM 2", "cpu": 45, "memory": 70, "status": "Idle" },
-      { "id": 3, "name": "VM 3", "cpu": 85, "memory": 90, "status": "Critical" },
-      { "id": 4, "name": "VM 4", "cpu": 20, "memory": 30, "status": "Idle" },
-      { "id": 5, "name": "VM 5", "cpu": 50, "memory": 40, "status": "Running" }
-    ]
-  }
-  
+  "vms": [
+    {
+      "id": "1",
+      "name": "VM 1",
+      "cpu": 35,
+      "memory": 60,
+      "status": "Running"
+    },
+    {
+      "id": "28581343-c3a5-5a11-abfc-89663f7098b8",
+      "name": "DESKTOP-8GDP00N",
+      "os": "Windows",
+      "cpu": 1.7562499999999999,
+      "memory": 55.9,
+      "disk": 28.7,
+      "status": "Running"
+    },
+    {
+      "id": "3d3598d9-6daf-54aa-adee-749044560d9b",
+      "name": "DESKTOP-DIH7VS8",
+      "os": "Windows",
+      "cpu": 0,
+      "memory": 46.7,
+      "disk": 32.2,
+      "status": "Running"
+    }
+  ]
+}
