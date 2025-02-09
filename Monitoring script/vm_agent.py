@@ -1,78 +1,110 @@
+import os
+import uuid
+import socket
 import platform
+import time
+import datetime
 import psutil
 import requests
-import uuid
-import time
 
-# Backend URL (Replace with your actual backend URL)
-BACKEND_URL = "http://localhost:3001/vms"
+# --- Utility to Get or Create a Unique Agent ID ---
+def get_agent_id():
+    agent_file = "agent_id.txt"
+    if os.path.exists(agent_file):
+        with open(agent_file, "r") as f:
+            agent_id = f.read().strip()
+    else:
+        agent_id = str(uuid.uuid4())
+        with open(agent_file, "w") as f:
+            f.write(agent_id)
+    return agent_id
 
-# Generate a unique ID for the VM based on the hostname or a static UUID
-VM_ID = str(uuid.uuid5(uuid.NAMESPACE_DNS, platform.node()))  # Consistent UUID for the machine
+# Get system details
+agent_id = get_agent_id()
+host_name = socket.gethostname()
+os_type = platform.system()
 
-def get_cpu_usage():
-    # Get per-core CPU usage percentages
-    core_usages = psutil.cpu_percent(interval=1, percpu=True)
-    # Calculate the average across all cores
-    total_cpu_usage = sum(core_usages) / len(core_usages)
-    return total_cpu_usage
+# Base URL configuration (ensure JSON Server is running on port 3001)
+API_BASE_URL = "http://localhost:3001/vms"
+API_URL = f"{API_BASE_URL}/{agent_id}"
 
-
-def get_system_metrics():
-    """
-    Collect system metrics such as CPU usage, memory usage, and disk usage.  
-    """
+# --- Record Management on the Server ---
+def create_vm_record(initial_data):
     try:
-        # Get accurate CPU usage
-        total_cpu_usage = get_cpu_usage()
-
-        metrics = {
-            "id": VM_ID,  # Unique identifier for the VM
-            "name": platform.node(),  # Hostname of the machine
-            "os": platform.system(),  # Operating system
-            "cpu": total_cpu_usage,  # Total CPU usage
-            "memory": psutil.virtual_memory().percent,  # Memory usage percentage
-            "disk": psutil.disk_usage('/').percent,  # Disk usage percentage
-            "status": "Running"
-        }
-        return metrics
-    except Exception as e:
-        print(f"Error collecting system metrics: {e}")
-        return None
-
-
-
-
-def send_metrics_to_server(metrics):
-    """
-    Send collected metrics to the backend server.
-    """
-    try:
-        # First, try PUT to update
-        response = requests.put(f"{BACKEND_URL}/{metrics['id']}", json=metrics)
-
-        # If resource doesn't exist, fallback to POST
-        if response.status_code == 404:
-            response = requests.post(BACKEND_URL, json=metrics)
-
-        if response.status_code in [200, 201]:
-            print(f"Metrics sent successfully: {metrics}")
+        response = requests.post(API_BASE_URL, json=initial_data)
+        if response.status_code in (200, 201):
+            print("Created new VM record on server.")
         else:
-            print(f"Failed to send metrics. Status Code: {response.status_code}")
+            print("Failed to create VM record:", response.status_code)
     except Exception as e:
-        print(f"Error sending metrics to server: {e}")
+        print("Error creating VM record:", e)
 
+def ensure_vm_record():
+    try:
+        get_response = requests.get(API_URL)
+        if get_response.status_code == 404:
+            # Record not found; create a new record with initial data.
+            initial_data = {
+                "id": agent_id,
+                "name": host_name,
+                "os": os_type,
+                "cpu": 0,
+                "memory": 0,
+                "disk": 0,
+                "network": {
+                    "bytes_sent": 0,
+                    "bytes_recv": 0,
+                    "packets_sent": 0,
+                    "packets_recv": 0
+                },
+                "status": "Running",
+                "last_updated": datetime.datetime.now().isoformat()
+            }
+            create_vm_record(initial_data)
+        else:
+            print("VM record already exists on the server.")
+    except Exception as e:
+        print("Error ensuring VM record exists:", e)
 
+# Ensure that the VM record exists before starting metrics updates
+ensure_vm_record()
 
-def main():
+# --- Metrics Collection & Reporting ---
+def collect_metrics():
     """
-    Main function to run the monitoring agent.
+    Collect system metrics and include static fields so that the record isn't overwritten.
     """
+    metrics = {
+        "id": agent_id,         # Unique ID for this VM
+        "name": host_name,      # System name
+        "os": os_type,          # Operating system
+        "cpu": psutil.cpu_percent(interval=1),
+        "memory": psutil.virtual_memory().percent,
+        "disk": psutil.disk_usage('/').percent,
+        "network": {
+            "bytes_sent": psutil.net_io_counters().bytes_sent,
+            "bytes_recv": psutil.net_io_counters().bytes_recv,
+            "packets_sent": psutil.net_io_counters().packets_sent,
+            "packets_recv": psutil.net_io_counters().packets_recv
+        },
+        "status": "Running",  # You can update this based on your own logic if needed
+        "last_updated": datetime.datetime.now().isoformat()
+    }
+    return metrics
+
+def send_metrics():
+    data = collect_metrics()
+    try:
+        response = requests.put(API_URL, json=data)
+        if response.status_code in (200, 201):
+            print("Metrics updated successfully.")
+        else:
+            print("Failed to update metrics:", response.status_code)
+    except Exception as e:
+        print("Error sending metrics:", e)
+
+# --- Main Loop ---
+if __name__ == '__main__':
     while True:
-        metrics = get_system_metrics()
-        if metrics:
-            send_metrics_to_server(metrics)
-        time.sleep(5)  # Send data every 5 seconds
-
-if __name__ == "__main__":
-    main()
+        send_metrics()
+        time.sleep(5)
