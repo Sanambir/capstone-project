@@ -1,3 +1,6 @@
+// Load environment variables from .env file
+require('dotenv').config();
+
 const express = require('express');
 const bodyParser = require('body-parser');
 const nodemailer = require('nodemailer');
@@ -9,12 +12,12 @@ const port = 5000;
 app.use(bodyParser.json());
 app.use(cors());
 
-// Configure your email transporter (example using Gmail)
+// Configure your email transporter using environment variables
 const transporter = nodemailer.createTransport({
   service: 'gmail',
   auth: {
-    user: 'sanambirsingh2@gmail.com',           // Replace with your Gmail address
-    pass: 'qvdm vkbt hsoq sisd',       // Replace with your app-specific password
+    user: process.env.EMAIL_USER,          // Your Gmail address from .env
+    pass: process.env.EMAIL_PASS,          // Your app-specific password from .env
   },
 });
 
@@ -32,8 +35,8 @@ app.post('/send-alert', (req, res) => {
   const { vmName, cpu, memory, disk, recipientEmail } = req.body;
 
   const mailOptions = {
-    from: 'sanambirsingh2@gmail.com', // Sender address (same as above)
-    to: recipientEmail || 'recipient@example.com', // Use provided recipient email or fallback
+    from: process.env.EMAIL_USER, // Sender address from env variable
+    to: recipientEmail || process.env.RECIPIENT_DEFAULT, // Use provided recipient or default
     subject: `Critical Alert for ${vmName}`,
     text: `Alert: ${vmName} is in a critical state.\nCPU: ${cpu}%\nMemory: ${memory}%\nDisk: ${disk}%`,
   };

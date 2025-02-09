@@ -20,33 +20,33 @@
       "id": "e5f76183-b672-4248-847a-768e847299b4",
       "name": "DESKTOP-8GDP00N",
       "os": "Windows",
-      "cpu": 2.2,
-      "memory": 46.2,
+      "cpu": 1.7,
+      "memory": 46.8,
       "disk": 32.6,
       "network": {
-        "bytes_sent": 237925169,
-        "bytes_recv": 11564379519,
-        "packets_sent": 1055353,
-        "packets_recv": 8848357
+        "bytes_sent": 240021857,
+        "bytes_recv": 11566908478,
+        "packets_sent": 1059126,
+        "packets_recv": 8854512
       },
       "status": "Running",
-      "last_updated": "2025-02-09T02:52:10.397593Z"
+      "last_updated": "2025-02-09T02:58:05.763085Z"
     },
     {
       "id": "7bc7",
       "name": "DESKTOP-DIH7VS8",
       "os": "Windows",
       "cpu": 0,
-      "memory": 50.9,
-      "disk": 34.9,
+      "memory": 44.5,
+      "disk": 35,
       "network": {
-        "bytes_sent": 1916994,
-        "bytes_recv": 12179676,
-        "packets_sent": 6611,
-        "packets_recv": 13850
+        "bytes_sent": 2012367,
+        "bytes_recv": 12383741,
+        "packets_sent": 7139,
+        "packets_recv": 14424
       },
       "status": "Running",
-      "last_updated": "2025-02-09T02:52:14.876771Z"
+      "last_updated": "2025-02-09T02:58:04.685702Z"
     }
   ]
 }
