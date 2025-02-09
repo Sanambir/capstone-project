@@ -7,7 +7,7 @@ import ReactModal from 'react-modal';
 ReactModal.setAppElement('#root');
 
 const CRITICAL_THRESHOLD = 80;
-const OFFLINE_THRESHOLD = 10000; // 10 seconds
+const OFFLINE_THRESHOLD = 15000; // 15 seconds
 
 function Dashboard() {
   const [vmData, setVmData] = useState([]);
@@ -16,14 +16,16 @@ function Dashboard() {
   const [currentPage, setCurrentPage] = useState(1);
   const rowsPerPage = 5;
 
-  // Helper function to check if a VM is offline based on its last_updated timestamp.
+  // Helper: Check if a VM is offline by comparing the UTC timestamp
   const isVMOffline = (lastUpdated) => {
     const now = new Date();
     const lastUpdate = new Date(lastUpdated);
-    return now - lastUpdate > OFFLINE_THRESHOLD;
+    const diff = now - lastUpdate;
+    console.log(`Now: ${now.toISOString()}, Last Updated: ${lastUpdate.toISOString()}, Diff: ${diff}ms`);
+    return diff > OFFLINE_THRESHOLD;
   };
 
-  // Fetch VM data every 5 seconds.
+  // Fetch VM data every 5 seconds
   useEffect(() => {
     const fetchData = async () => {
       try {
@@ -42,13 +44,12 @@ function Dashboard() {
     fetchData();
     const interval = setInterval(fetchData, 5000);
     return () => clearInterval(interval);
-  }, []); // Runs once on mount
+  }, []);
 
-  // Update the selected VM when either vmData or selectedVM changes.
+  // Update selectedVM when vmData changes
   useEffect(() => {
     if (selectedVM) {
       const updatedVM = vmData.find((vm) => vm.id === selectedVM.id);
-      // Only update if there's a change (compare last_updated timestamps)
       if (updatedVM && updatedVM.last_updated !== selectedVM.last_updated) {
         setSelectedVM(updatedVM);
       }
@@ -68,15 +69,12 @@ function Dashboard() {
   // Filter VMs based on the selected filter.
   const filteredData = vmData.filter((vm) => {
     if (filter === 'All') return true;
-    if (
-      filter === 'Critical' &&
-      (vm.cpu > CRITICAL_THRESHOLD || vm.memory > CRITICAL_THRESHOLD)
-    )
+    if (filter === 'Critical' && (vm.cpu > CRITICAL_THRESHOLD || vm.memory > CRITICAL_THRESHOLD))
       return true;
     return vm.status === filter;
   });
 
-  // Pagination logic.
+  // Pagination logic
   const indexOfLastRow = currentPage * rowsPerPage;
   const indexOfFirstRow = indexOfLastRow - rowsPerPage;
   const currentRows = filteredData.slice(indexOfFirstRow, indexOfLastRow);
@@ -91,9 +89,7 @@ function Dashboard() {
   const openModal = (vm) => setSelectedVM(vm);
   const closeModal = () => setSelectedVM(null);
 
-  // Determine offline status for the modal.
-  const selectedOffline =
-    selectedVM && selectedVM.last_updated ? isVMOffline(selectedVM.last_updated) : false;
+  const selectedOffline = selectedVM && selectedVM.last_updated ? isVMOffline(selectedVM.last_updated) : false;
 
   return (
     <div style={{ display: 'flex' }}>
