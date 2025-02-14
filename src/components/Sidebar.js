@@ -50,6 +50,23 @@ function Sidebar() {
         </li>
         <li style={{ marginBottom: '15px' }}>
           <Link
+            to="/manage"
+            style={{
+              color: '#fff',
+              textDecoration: 'none',
+              padding: '10px',
+              display: 'block',
+              borderRadius: '5px',
+              transition: 'background-color 0.2s',
+            }}
+            onMouseEnter={(e) => (e.target.style.backgroundColor = '#495057')}
+            onMouseLeave={(e) => (e.target.style.backgroundColor = 'transparent')}
+          >
+            Manage VMs
+          </Link>
+        </li>
+        <li style={{ marginBottom: '15px' }}>
+          <Link
             to="/settings"
             style={{
               color: '#fff',
@@ -65,6 +82,24 @@ function Sidebar() {
             Settings
           </Link>
         </li>
+        <li style={{ marginBottom: '15px' }}>
+          <Link
+            to="/performance/demo-vm-id"
+            style={{
+              color: '#fff',
+              textDecoration: 'none',
+              padding: '10px',
+              display: 'block',
+              borderRadius: '5px',
+              transition: 'background-color 0.2s',
+            }}
+            onMouseEnter={(e) => (e.target.style.backgroundColor = '#495057')}
+            onMouseLeave={(e) => (e.target.style.backgroundColor = 'transparent')}
+          >
+            Performance Chart
+          </Link>
+        </li>
+
       </ul>
     </div>
   );

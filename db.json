@@ -1,40 +1,8 @@
 {
   "vms": [
     {
-      "id": "28581343-c3a5-5a11-abfc-89663f7098b8",
-      "name": "DESKTOP-8GDP00N",
-      "os": "Windows",
-      "cpu": 27.03125,
-      "memory": 41.3,
-      "disk": 31.8,
-      "network": {
-        "bytes_sent": 329688034,
-        "bytes_recv": 1641727207,
-        "packets_sent": 219453,
-        "packets_recv": 3581339
-      },
-      "status": "Running",
-      "last_updated": "2025-02-06T22:01:26.981894"
-    },
-    {
-      "id": "e5f76183-b672-4248-847a-768e847299b4",
-      "name": "DESKTOP-8GDP00N",
-      "os": "Windows",
-      "cpu": 0.7,
-      "memory": 51.2,
-      "disk": 35.3,
-      "network": {
-        "bytes_sent": 246902405,
-        "bytes_recv": 11920541417,
-        "packets_sent": 1093580,
-        "packets_recv": 9108913
-      },
-      "status": "Running",
-      "last_updated": "2025-02-09T03:32:55.825305Z"
-    },
-    {
       "id": "7bc7",
-      "name": "DESKTOP-DIH7VS8",
+      "name": "Personal PC",
       "os": "Windows",
       "cpu": 3.1,
       "memory": 42.9,
@@ -46,7 +14,7 @@
         "packets_recv": 14921
       },
       "status": "Running",
-      "last_updated": "2025-02-09T03:06:07.205706Z"
+      "last_updated": "2025-02-14T04:31:20.849Z"
     }
   ]
 }
