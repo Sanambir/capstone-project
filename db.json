@@ -1,20 +1,36 @@
 {
   "vms": [
     {
-      "id": "7bc7",
-      "name": "Personal PC",
+      "id": "5b9b",
+      "name": "DESKTOP-8GDP00N",
       "os": "Windows",
-      "cpu": 3.1,
-      "memory": 42.9,
-      "disk": 35,
+      "cpu": 3.5,
+      "memory": 59.9,
+      "disk": 35.7,
       "network": {
-        "bytes_sent": 2081307,
-        "bytes_recv": 12483413,
-        "packets_sent": 7648,
-        "packets_recv": 14921
+        "bytes_sent": 481335945,
+        "bytes_recv": 8338967035,
+        "packets_sent": 1606887,
+        "packets_recv": 6775743
       },
       "status": "Running",
-      "last_updated": "2025-02-14T04:31:20.849Z"
+      "last_updated": "2025-02-16T04:16:09.864061Z"
+    },
+    {
+      "id": "9016",
+      "name": "sanam-virtual-machine",
+      "os": "Linux",
+      "cpu": 19.6,
+      "memory": 42.8,
+      "disk": 64.6,
+      "network": {
+        "bytes_sent": 1287376,
+        "bytes_recv": 643013453,
+        "packets_sent": 17606,
+        "packets_recv": 426566
+      },
+      "status": "Running",
+      "last_updated": "2025-02-16T04:16:22.007407Z"
     }
   ]
 }
