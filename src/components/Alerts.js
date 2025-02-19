@@ -52,20 +52,19 @@ function Alerts() {
   const [vmData, setVmData] = useState([]);
   const [acknowledgedAlerts, setAcknowledgedAlerts] = useState({});
   const [autoEmail, setAutoEmail] = useState(false);
-  // autoEmailSent stores the last sent timestamp for each VM (persisted in localStorage)
   const [autoEmailSent, setAutoEmailSent] = useState({});
   const [recipientEmail, setRecipientEmail] = useState('');
   const [filter, setFilter] = useState('All');
-  // Pagination state added here:
   const [currentPage, setCurrentPage] = useState(1);
+  const [editingEmail, setEditingEmail] = useState(false);
 
-  // Dynamic thresholds with defaults
+  // Dynamic thresholds and email frequency with defaults
   const cpuThreshold = Number(localStorage.getItem('cpuThreshold')) || 80;
   const memoryThreshold = Number(localStorage.getItem('memoryThreshold')) || 80;
   const emailFrequency = Number(localStorage.getItem('emailFrequency')) || 5; // in minutes
-  const OFFLINE_THRESHOLD = 15000; // 15 seconds in ms
+  const OFFLINE_THRESHOLD = 15000; // 15 seconds (ms)
 
-  // On mount, load recipientEmail, autoEmail, and autoEmailSent from localStorage.
+  // On mount, load saved settings from localStorage.
   useEffect(() => {
     const storedRecipientEmail = localStorage.getItem('recipientEmail');
     if (storedRecipientEmail) {
@@ -86,7 +85,7 @@ function Alerts() {
     localStorage.setItem('autoEmailSent', JSON.stringify(autoEmailSent));
   }, [autoEmailSent]);
 
-  // Helper: Check if a VM is offline based on its last_updated timestamp.
+  // Helper: Check if a VM is offline.
   const isVMOffline = (lastUpdated) => {
     const now = new Date();
     const lastUpdate = new Date(lastUpdated);
@@ -113,24 +112,48 @@ function Alerts() {
     return () => clearInterval(interval);
   }, []);
 
-  // Determine critical VMs (online and meeting threshold criteria).
-  const criticalVMs = vmData.filter((vm) => {
+  // Determine all critical VMs (online and exceeding threshold)
+  const allCriticalVMs = vmData.filter((vm) => {
     const online = vm.last_updated && !isVMOffline(vm.last_updated);
     const isCritical = vm.cpu > cpuThreshold || vm.memory > memoryThreshold;
     return online && isCritical;
   });
 
-  // Separate critical VMs into unacknowledged and acknowledged.
-  const unacknowledgedCritical = criticalVMs.filter((vm) => !acknowledgedAlerts[vm.id]);
-  const acknowledgedCritical = criticalVMs.filter((vm) => acknowledgedAlerts[vm.id]);
+  // Apply user filter to critical VMs.
+  const filteredCriticalVMs = allCriticalVMs.filter((vm) => {
+    if (filter === 'All') return true;
+    if (filter === 'CPU') return vm.cpu > cpuThreshold;
+    if (filter === 'Memory') return vm.memory > memoryThreshold;
+    return true;
+  });
 
-  // Handle manual acknowledgement.
+  // Separate filtered VMs into unacknowledged and acknowledged.
+  const unacknowledgedCritical = filteredCriticalVMs.filter(
+    (vm) => !acknowledgedAlerts[vm.id]
+  );
+  const acknowledgedCritical = filteredCriticalVMs.filter(
+    (vm) => acknowledgedAlerts[vm.id]
+  );
+
+  // Pagination for unacknowledged alerts.
+  const rowsPerPage = 5;
+  const indexOfLastRow = currentPage * rowsPerPage;
+  const indexOfFirstRow = indexOfLastRow - rowsPerPage;
+  const currentRows = unacknowledgedCritical.slice(indexOfFirstRow, indexOfLastRow);
+  const totalPages = Math.ceil(unacknowledgedCritical.length / rowsPerPage);
+
+  const handlePageChange = (newPage) => {
+    if (newPage > 0 && newPage <= totalPages) {
+      setCurrentPage(newPage);
+    }
+  };
+
+  // Handlers for acknowledgement.
   const handleAcknowledge = (id) => {
     setAcknowledgedAlerts((prev) => ({ ...prev, [id]: true }));
     setAutoEmailSent((prev) => ({ ...prev, [id]: 0 }));
   };
 
-  // Handle "Remove Acknowledgement" (unacknowledge).
   const handleUnacknowledge = (id) => {
     setAcknowledgedAlerts((prev) => {
       const newState = { ...prev };
@@ -142,20 +165,21 @@ function Alerts() {
   // Handle filter change.
   const handleFilterChange = (e) => {
     setFilter(e.target.value);
+    setCurrentPage(1);
   };
 
-  // Handle changes to the recipient email input.
+  // Handlers for recipient email editing.
   const handleRecipientChange = (e) => {
     setRecipientEmail(e.target.value);
   };
 
-  // Save the recipient email to localStorage.
   const handleEmailSave = () => {
     localStorage.setItem('recipientEmail', recipientEmail);
+    setEditingEmail(false);
     alert('Email saved successfully!');
   };
 
-  // Handle auto email toggle change.
+  // Handle auto email toggle.
   const handleAutoEmailToggle = (e) => {
     const isEnabled = e.target.checked;
     setAutoEmail(isEnabled);
@@ -178,8 +202,8 @@ function Alerts() {
     }
   };
 
-  // Automatic email effect: for each unacknowledged critical VM,
-  // if there's no previous timestamp, initialize it to now without sending an email.
+  // Automatic email effect:
+  // For each unacknowledged critical VM, if no timestamp exists, initialize it (without sending an email).
   // Otherwise, send an email only if enough time has passed.
   useEffect(() => {
     if (autoEmail) {
@@ -188,7 +212,7 @@ function Alerts() {
       unacknowledgedCritical.forEach((vm) => {
         const lastSent = autoEmailSent[vm.id];
         if (!lastSent) {
-          // Initialize the timestamp without sending an email.
+          // Initialize without sending an email.
           setAutoEmailSent((prev) => ({ ...prev, [vm.id]: now }));
         } else if (now - lastSent > frequencyMs) {
           if (recipientEmail && recipientEmail.trim() !== '') {
@@ -199,19 +223,6 @@ function Alerts() {
       });
     }
   }, [autoEmail, unacknowledgedCritical, emailFrequency, recipientEmail]);
-
-  // Pagination logic.
-  const rowsPerPage = 5;
-  const indexOfLastRow = currentPage * rowsPerPage;
-  const indexOfFirstRow = indexOfLastRow - rowsPerPage;
-  const currentRows = criticalVMs.slice(indexOfFirstRow, indexOfLastRow);
-  const totalPages = Math.ceil(criticalVMs.length / rowsPerPage);
-
-  const handlePageChange = (newPage) => {
-    if (newPage > 0 && newPage <= totalPages) {
-      setCurrentPage(newPage);
-    }
-  };
 
   return (
     <div style={{ display: 'flex', height: '100vh', backgroundColor: '#f4f4f4' }}>
@@ -233,9 +244,9 @@ function Alerts() {
         </div>
 
         <h3>Unacknowledged Alerts</h3>
-        {unacknowledgedCritical.length > 0 ? (
+        {currentRows.length > 0 ? (
           <ul style={{ listStyle: 'none', padding: 0 }}>
-            {unacknowledgedCritical.map((vm) => (
+            {currentRows.map((vm) => (
               <li
                 key={vm.id}
                 style={{
@@ -283,6 +294,19 @@ function Alerts() {
           <p>No critical alerts at the moment.</p>
         )}
 
+        {/* Pagination for unacknowledged alerts */}
+        <div style={{ textAlign: 'center', marginTop: '20px' }}>
+          <button onClick={() => handlePageChange(currentPage - 1)} disabled={currentPage === 1}>
+            Previous
+          </button>
+          <span style={{ margin: '0 10px' }}>
+            Page {currentPage} of {totalPages}
+          </span>
+          <button onClick={() => handlePageChange(currentPage + 1)} disabled={currentPage === totalPages}>
+            Next
+          </button>
+        </div>
+
         <h3>Acknowledged Alerts</h3>
         {acknowledgedCritical.length > 0 ? (
           <ul style={{ listStyle: 'none', padding: 0 }}>
@@ -319,19 +343,6 @@ function Alerts() {
         ) : (
           <p>No acknowledged alerts.</p>
         )}
-
-        {/* Pagination */}
-        <div style={{ textAlign: 'center', marginTop: '20px' }}>
-          <button onClick={() => handlePageChange(currentPage - 1)} disabled={currentPage === 1}>
-            Previous
-          </button>
-          <span style={{ margin: '0 10px' }}>
-            Page {currentPage} of {totalPages}
-          </span>
-          <button onClick={() => handlePageChange(currentPage + 1)} disabled={currentPage === totalPages}>
-            Next
-          </button>
-        </div>
       </div>
 
       {/* Right Column: User Settings */}
@@ -344,10 +355,50 @@ function Alerts() {
         }}
       >
         <h3>User Info</h3>
-        <p>
-          <strong>Saved Email:</strong>{' '}
-          {recipientEmail ? recipientEmail : 'Not set'}
-        </p>
+        <div style={{ marginBottom: '15px' }}>
+          <p>
+            <strong>Saved Email:</strong>{' '}
+            {recipientEmail ? recipientEmail : 'Not set'}
+          </p>
+          {editingEmail ? (
+            <>
+              <input
+                type="email"
+                value={recipientEmail}
+                onChange={handleRecipientChange}
+                style={{ padding: '5px', borderRadius: '5px', border: '1px solid #ccc' }}
+              />
+              <button
+                onClick={handleEmailSave}
+                style={{
+                  marginLeft: '10px',
+                  padding: '5px 10px',
+                  backgroundColor: '#28a745',
+                  color: '#fff',
+                  border: 'none',
+                  borderRadius: '5px',
+                  cursor: 'pointer',
+                }}
+              >
+                Save
+              </button>
+            </>
+          ) : (
+            <button
+              onClick={() => setEditingEmail(true)}
+              style={{
+                padding: '5px 10px',
+                backgroundColor: '#007bff',
+                color: '#fff',
+                border: 'none',
+                borderRadius: '5px',
+                cursor: 'pointer',
+              }}
+            >
+              Edit Email
+            </button>
+          )}
+        </div>
         <p>
           <strong>Automatic Email Alerts:</strong> {autoEmail ? 'ON' : 'OFF'}
         </p>
