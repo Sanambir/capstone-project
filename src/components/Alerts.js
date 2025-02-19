@@ -65,7 +65,7 @@ function Alerts() {
     return () => clearInterval(interval);
   }, []);
 
-  // Filter VMs that are online and in a critical state.
+  // Determine critical VMs (online and meeting threshold criteria).
   const criticalVMs = vmData.filter((vm) => {
     const online = vm.last_updated && !isVMOffline(vm.last_updated);
     const isCritical = vm.cpu > cpuThreshold || vm.memory > memoryThreshold;
@@ -130,15 +130,18 @@ function Alerts() {
     }
   };
 
-  // Automatic email effect: for each unacknowledged critical VM, send an email if autoEmail is enabled and enough time has passed.
+  // Automatic email effect:
+  // For each unacknowledged critical VM, if there's no previous timestamp,
+  // initialize it to now without sending an email.
+  // Otherwise, send an email only if enough time has passed.
   useEffect(() => {
     if (autoEmail) {
       const now = Date.now();
       const frequencyMs = emailFrequency * 60 * 1000; // Convert minutes to ms.
       unacknowledgedCritical.forEach((vm) => {
-        let lastSent = autoEmailSent[vm.id];
-        // If no record exists, initialize it to now (but do not send email immediately).
+        const lastSent = autoEmailSent[vm.id];
         if (!lastSent) {
+          // Initialize without sending email.
           setAutoEmailSent((prev) => ({ ...prev, [vm.id]: now }));
         } else if (now - lastSent > frequencyMs) {
           if (recipientEmail && recipientEmail.trim() !== '') {
@@ -148,7 +151,7 @@ function Alerts() {
         }
       });
     }
-  }, [autoEmail, unacknowledgedCritical, emailFrequency, recipientEmail, autoEmailSent]);
+  }, [autoEmail, unacknowledgedCritical, emailFrequency, recipientEmail]);
 
   return (
     <div style={{ display: 'flex', height: '100vh', backgroundColor: '#f4f4f4' }}>
@@ -158,7 +161,9 @@ function Alerts() {
 
         {/* Recipient Email Input with Save Button */}
         <div style={{ marginBottom: '20px' }}>
-          <label style={{ fontWeight: 'bold', marginRight: '10px' }}>Recipient Email:</label>
+          <label style={{ fontWeight: 'bold', marginRight: '10px' }}>
+            Recipient Email:
+          </label>
           <input
             type="email"
             value={recipientEmail}
@@ -184,13 +189,17 @@ function Alerts() {
 
         {/* Automatic Email Alerts Toggle */}
         <div style={{ marginBottom: '20px' }}>
-          <label style={{ fontWeight: 'bold', marginRight: '10px' }}>Automatic Email Alerts:</label>
+          <label style={{ fontWeight: 'bold', marginRight: '10px' }}>
+            Automatic Email Alerts:
+          </label>
           <input type="checkbox" checked={autoEmail} onChange={handleAutoEmailToggle} />
         </div>
 
         {/* Filter Selection */}
         <div style={{ marginBottom: '20px' }}>
-          <label style={{ fontWeight: 'bold', marginRight: '10px' }}>Filter Alerts:</label>
+          <label style={{ fontWeight: 'bold', marginRight: '10px' }}>
+            Filter Alerts:
+          </label>
           <select
             value={filter}
             onChange={handleFilterChange}

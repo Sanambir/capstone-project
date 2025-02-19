@@ -4,17 +4,17 @@
       "id": "5b9b",
       "name": "DESKTOP-8GDP00N",
       "os": "Windows",
-      "cpu": 1.1,
-      "memory": 45.7,
+      "cpu": 3,
+      "memory": 45.8,
       "disk": 36.3,
       "network": {
-        "bytes_sent": 126127080,
-        "bytes_recv": 1634868167,
-        "packets_sent": 399136,
-        "packets_recv": 1414254
+        "bytes_sent": 135398880,
+        "bytes_recv": 1705514048,
+        "packets_sent": 424210,
+        "packets_recv": 1479701
       },
       "status": "Running",
-      "last_updated": "2025-02-19T04:46:00.144426Z"
+      "last_updated": "2025-02-19T05:31:46.571563Z"
     },
     {
       "id": "9016",
