@@ -4,17 +4,40 @@ import Select from 'react-select';
 import { Line } from 'react-chartjs-2';
 import 'chart.js/auto';
 import 'chartjs-adapter-date-fns';
+import ReactModal from 'react-modal';
+
+ReactModal.setAppElement('#root');
+
+// Helper function: Aggregate data into a desired number of points by averaging.
+function aggregateData(data, desiredPoints = 20) {
+  if (data.length <= desiredPoints) return data;
+  const groupSize = Math.floor(data.length / desiredPoints);
+  const aggregated = [];
+  for (let i = 0; i < data.length; i += groupSize) {
+    const group = data.slice(i, i + groupSize);
+    const avgTime =
+      new Date(
+        group.reduce((acc, cur) => acc + cur.time.getTime(), 0) / group.length
+      );
+    const avgCpu = group.reduce((acc, cur) => acc + cur.cpu, 0) / group.length;
+    const avgMemory =
+      group.reduce((acc, cur) => acc + cur.memory, 0) / group.length;
+    const avgDisk = group.reduce((acc, cur) => acc + cur.disk, 0) / group.length;
+    aggregated.push({ time: avgTime, cpu: avgCpu, memory: avgMemory, disk: avgDisk });
+  }
+  return aggregated;
+}
 
 function PerformanceChart() {
-  // State for list of VMs, selected VMs (as an array of IDs), and historical data.
+  // State for list of VMs and selected VM IDs
   const [vmList, setVmList] = useState([]);
-  const [selectedVmIds, setSelectedVmIds] = useState([]);
-  // For react-select, we use selectedOptions which are objects { value, label }
   const [selectedOptions, setSelectedOptions] = useState([]);
-  // historyData maps vmId -> array of { time, cpu, memory, disk }
+  // selectedVmIds will be derived from selectedOptions
+  const [selectedVmIds, setSelectedVmIds] = useState([]);
+  // historyData: object mapping vmId -> array of { time, cpu, memory, disk }
   const [historyData, setHistoryData] = useState({});
 
-  // Fetch list of VMs on mount
+  // Fetch the list of VMs on mount
   useEffect(() => {
     const fetchVms = async () => {
       try {
@@ -22,7 +45,7 @@ function PerformanceChart() {
         if (res.ok) {
           const data = await res.json();
           setVmList(data);
-          // If no VM is selected, default to the first one
+          // Set default if none selected
           if (data.length > 0 && selectedVmIds.length === 0) {
             const defaultOption = { value: data[0].id, label: data[0].name };
             setSelectedOptions([defaultOption]);
@@ -54,6 +77,7 @@ function PerformanceChart() {
         if (res.ok) {
           const data = await res.json();
           setHistoryData((prev) => {
+            // Instead of slicing to last 20 entries immediately, store up to 100 data points.
             const prevHistory = prev[id] || [];
             const newEntry = { 
               time: new Date(data.last_updated), 
@@ -61,7 +85,7 @@ function PerformanceChart() {
               memory: data.memory, 
               disk: data.disk 
             };
-            const updatedHistory = [...prevHistory, newEntry].slice(-20);
+            const updatedHistory = [...prevHistory, newEntry].slice(-100);
             return { ...prev, [id]: updatedHistory };
           });
         } else {
@@ -85,14 +109,15 @@ function PerformanceChart() {
     return () => clearInterval(interval);
   }, [selectedVmIds]);
 
-  // Prepare datasets for a given metric.
+  // Create datasets for a given metric using aggregated data.
   const createDatasets = (metric) =>
     selectedVmIds.map((id, index) => {
       const vm = vmList.find((vm) => vm.id === id);
       const history = historyData[id] || [];
+      const aggregatedHistory = aggregateData(history, 20);
       return {
         label: vm ? vm.name : id,
-        data: history.map((entry) => ({ x: entry.time, y: entry[metric] })),
+        data: aggregatedHistory.map((entry) => ({ x: entry.time, y: entry[metric] })),
         fill: false,
         borderColor: colors[index % colors.length],
         tension: 0.1,
@@ -145,7 +170,7 @@ function PerformanceChart() {
     document.body.removeChild(link);
   };
 
-  // Styling for container and cards.
+  // Styling objects
   const containerStyle = {
     maxWidth: '1200px',
     margin: '0 auto',
@@ -176,7 +201,7 @@ function PerformanceChart() {
       <div style={containerStyle}>
         <h2>Performance Charts</h2>
         <div style={{ marginBottom: '20px' }}>
-          <label style={{ fontWeight: 'bold', marginRight: '10px' }}>Select VMs:</label>
+          <label style={{ fontWeight: 'bold', marginRight: '10px' }}>Select VM(s):</label>
           <Select
             options={vmList.map(vm => ({ value: vm.id, label: vm.name }))}
             isMulti
