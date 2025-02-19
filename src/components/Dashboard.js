@@ -1,13 +1,15 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { CircularProgressbar, buildStyles } from 'react-circular-progressbar';
 import 'react-circular-progressbar/dist/styles.css';
 import Sidebar from './Sidebar';
 import ReactModal from 'react-modal';
+import { ToastContainer, toast } from 'react-toastify';
+import 'react-toastify/dist/ReactToastify.css';
 
 ReactModal.setAppElement('#root');
 
-const CRITICAL_THRESHOLD = 80;
 const OFFLINE_THRESHOLD = 15000; // 15 seconds
+const TOAST_DELAY = 300000; // 5 minutes (300,000 ms)
 
 function Dashboard() {
   const [vmData, setVmData] = useState([]);
@@ -16,16 +18,21 @@ function Dashboard() {
   const [currentPage, setCurrentPage] = useState(1);
   const rowsPerPage = 5;
 
-  // Helper: Check if a VM is offline by comparing the UTC timestamp
+  // Retrieve thresholds from localStorage with defaults
+  const cpuThreshold = Number(localStorage.getItem('cpuThreshold')) || 80;
+  const memoryThreshold = Number(localStorage.getItem('memoryThreshold')) || 80;
+
+  // Use a ref to track the last toast time for each VM
+  const toastTimestampsRef = useRef({});
+
+  // Helper: Check if a VM is offline based on its last_updated timestamp.
   const isVMOffline = (lastUpdated) => {
     const now = new Date();
     const lastUpdate = new Date(lastUpdated);
-    const diff = now - lastUpdate;
-    console.log(`Now: ${now.toISOString()}, Last Updated: ${lastUpdate.toISOString()}, Diff: ${diff}ms`);
-    return diff > OFFLINE_THRESHOLD;
+    return now - lastUpdate > OFFLINE_THRESHOLD;
   };
 
-  // Fetch VM data every 5 seconds
+  // Fetch VM data from JSON Server every 5 seconds.
   useEffect(() => {
     const fetchData = async () => {
       try {
@@ -46,7 +53,7 @@ function Dashboard() {
     return () => clearInterval(interval);
   }, []);
 
-  // Update selectedVM when vmData changes
+  // Update selectedVM when vmData changes.
   useEffect(() => {
     if (selectedVM) {
       const updatedVM = vmData.find((vm) => vm.id === selectedVM.id);
@@ -66,15 +73,34 @@ function Dashboard() {
     setCurrentPage(1);
   };
 
-  // Filter VMs based on the selected filter.
+  // Filter VMs based on selected filter.
   const filteredData = vmData.filter((vm) => {
     if (filter === 'All') return true;
-    if (filter === 'Critical' && (vm.cpu > CRITICAL_THRESHOLD || vm.memory > CRITICAL_THRESHOLD))
+    if (filter === 'Critical' && (vm.cpu > cpuThreshold || vm.memory > memoryThreshold))
       return true;
     return vm.status === filter;
   });
 
-  // Pagination logic
+  // Throttle toast notifications only for online and critical VMs.
+  useEffect(() => {
+    const now = Date.now();
+    // Filter VMs that are online and critical.
+    const criticalOnlineVMs = vmData.filter(
+      (vm) => vm.last_updated && !isVMOffline(vm.last_updated) && (vm.cpu > cpuThreshold || vm.memory > memoryThreshold)
+    );
+
+    criticalOnlineVMs.forEach((vm) => {
+      const lastToast = toastTimestampsRef.current[vm.id] || 0;
+      if (now - lastToast > TOAST_DELAY) {
+        toast.error(`VM ${vm.name} is in critical state!`, {
+          position: 'top-right',
+          autoClose: 3000,
+        });
+        toastTimestampsRef.current[vm.id] = now;
+      }
+    });
+  }, [vmData, cpuThreshold, memoryThreshold]);
+
   const indexOfLastRow = currentPage * rowsPerPage;
   const indexOfFirstRow = indexOfLastRow - rowsPerPage;
   const currentRows = filteredData.slice(indexOfFirstRow, indexOfLastRow);
@@ -89,7 +115,8 @@ function Dashboard() {
   const openModal = (vm) => setSelectedVM(vm);
   const closeModal = () => setSelectedVM(null);
 
-  const selectedOffline = selectedVM && selectedVM.last_updated ? isVMOffline(selectedVM.last_updated) : false;
+  const selectedOffline =
+    selectedVM && selectedVM.last_updated ? isVMOffline(selectedVM.last_updated) : false;
 
   return (
     <div style={{ display: 'flex' }}>
@@ -126,7 +153,12 @@ function Dashboard() {
 
         {/* VM Cards */}
         {currentRows.map((vm) => {
-          const offline = vm.last_updated && isVMOffline(vm.last_updated);
+          // Determine if the VM is online and if it's critical
+          const online = vm.last_updated && !isVMOffline(vm.last_updated);
+          const isCritical = vm.cpu > cpuThreshold || vm.memory > memoryThreshold;
+          // Set background: if offline, light gray; if online and critical, red; otherwise white.
+          const bgColor = online ? (isCritical ? '#ffcccc' : '#fff') : '#e0e0e0';
+
           return (
             <div
               key={vm.id}
@@ -136,8 +168,7 @@ function Dashboard() {
                 padding: '20px',
                 border: '1px solid #ddd',
                 borderRadius: '10px',
-                backgroundColor:
-                  vm.cpu > CRITICAL_THRESHOLD || vm.memory > CRITICAL_THRESHOLD ? '#ffcccc' : '#fff',
+                backgroundColor: bgColor,
                 cursor: 'pointer',
               }}
             >
@@ -147,10 +178,10 @@ function Dashboard() {
                 <div style={{ width: '150px', textAlign: 'center' }}>
                   <h4>CPU Usage</h4>
                   <CircularProgressbar
-                    value={offline ? 0 : vm.cpu || 0}
-                    text={`${offline ? 0 : vm.cpu || 0}%`}
+                    value={online ? vm.cpu || 0 : 0}
+                    text={`${online ? vm.cpu || 0 : 0}%`}
                     styles={buildStyles({
-                      pathColor: `rgba(255, 0, 0, ${(offline ? 0 : vm.cpu) / 100})`,
+                      pathColor: `rgba(255, 0, 0, ${online ? (vm.cpu || 0) / 100 : 0})`,
                       textColor: '#000',
                       trailColor: '#d6d6d6',
                     })}
@@ -160,10 +191,10 @@ function Dashboard() {
                 <div style={{ width: '150px', textAlign: 'center' }}>
                   <h4>Memory Usage</h4>
                   <CircularProgressbar
-                    value={offline ? 0 : vm.memory || 0}
-                    text={`${offline ? 0 : vm.memory || 0}%`}
+                    value={online ? vm.memory || 0 : 0}
+                    text={`${online ? vm.memory || 0 : 0}%`}
                     styles={buildStyles({
-                      pathColor: `rgba(255, 0, 0, ${(offline ? 0 : vm.memory) / 100})`,
+                      pathColor: `rgba(255, 0, 0, ${online ? (vm.memory || 0) / 100 : 0})`,
                       textColor: '#000',
                       trailColor: '#d6d6d6',
                     })}
@@ -173,10 +204,10 @@ function Dashboard() {
                 <div style={{ width: '150px', textAlign: 'center' }}>
                   <h4>Disk Usage</h4>
                   <CircularProgressbar
-                    value={offline ? 0 : vm.disk || 0}
-                    text={`${offline ? 0 : vm.disk || 0}%`}
+                    value={online ? vm.disk || 0 : 0}
+                    text={`${online ? vm.disk || 0 : 0}%`}
                     styles={buildStyles({
-                      pathColor: `rgba(0, 0, 255, ${(offline ? 0 : vm.disk) / 100})`,
+                      pathColor: `rgba(0, 0, 255, ${online ? (vm.disk || 0) / 100 : 0})`,
                       textColor: '#000',
                       trailColor: '#d6d6d6',
                     })}
@@ -185,32 +216,16 @@ function Dashboard() {
                 {/* Network Usage */}
                 <div style={{ width: '150px', textAlign: 'center' }}>
                   <h4>Network Usage</h4>
-                  {offline ? (
-                    <p>Offline</p>
-                  ) : vm.network &&
-                    vm.network.bytes_sent !== undefined &&
-                    vm.network.bytes_recv !== undefined ? (
+                  {online && vm.network && vm.network.bytes_sent !== undefined && vm.network.bytes_recv !== undefined ? (
                     <div>
                       <p>Bytes Sent: {vm.network.bytes_sent.toLocaleString()} B</p>
                       <p>Bytes Received: {vm.network.bytes_recv.toLocaleString()} B</p>
                     </div>
                   ) : (
-                    <p>N/A</p>
+                    <p>Offline</p>
                   )}
                 </div>
               </div>
-              {offline && (
-                <div
-                  style={{
-                    textAlign: 'center',
-                    marginTop: '10px',
-                    color: '#dc3545',
-                    fontWeight: 'bold',
-                  }}
-                >
-                  Offline
-                </div>
-              )}
             </div>
           );
         })}
@@ -261,6 +276,9 @@ function Dashboard() {
             </button>
           </ReactModal>
         )}
+
+        {/* Toast Notifications Container */}
+        <ToastContainer />
       </div>
     </div>
   );

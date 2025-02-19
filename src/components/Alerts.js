@@ -5,13 +5,39 @@ import Sidebar from './Sidebar';
 function Alerts() {
   const [vmData, setVmData] = useState([]);
   const [acknowledgedAlerts, setAcknowledgedAlerts] = useState({});
-  const [filter, setFilter] = useState('All');
   const [autoEmail, setAutoEmail] = useState(false);
-  // autoEmailSent now stores the timestamp (in ms) when the last auto-email was sent for each VM.
   const [autoEmailSent, setAutoEmailSent] = useState({});
   const [recipientEmail, setRecipientEmail] = useState('');
+  const [filter, setFilter] = useState('All');
 
-  // Fetch VM data every 5 seconds
+  // Dynamic thresholds (with defaults)
+  const cpuThreshold = Number(localStorage.getItem('cpuThreshold')) || 80;
+  const memoryThreshold = Number(localStorage.getItem('memoryThreshold')) || 80;
+  const emailFrequency = Number(localStorage.getItem('emailFrequency')) || 5; // in minutes
+
+  // Offline threshold is 15 seconds (to match Dashboard)
+  const OFFLINE_THRESHOLD = 15000; // ms
+
+  // On mount, load recipientEmail and autoEmail from localStorage
+  useEffect(() => {
+    const storedRecipientEmail = localStorage.getItem('recipientEmail');
+    if (storedRecipientEmail) {
+      setRecipientEmail(storedRecipientEmail);
+    }
+    const storedAutoEmail = localStorage.getItem('autoEmail');
+    if (storedAutoEmail !== null) {
+      setAutoEmail(storedAutoEmail === 'true');
+    }
+  }, []);
+
+  // Helper: Check if a VM is offline based on its last_updated timestamp.
+  const isVMOffline = (lastUpdated) => {
+    const now = new Date();
+    const lastUpdate = new Date(lastUpdated);
+    return now - lastUpdate > OFFLINE_THRESHOLD;
+  };
+
+  // Fetch VM data every 5 seconds.
   useEffect(() => {
     const fetchData = async () => {
       try {
@@ -23,43 +49,47 @@ function Alerts() {
           console.error('Failed to fetch VM data');
         }
       } catch (error) {
-        console.error('Error fetching VM data:', error);
+        console.error('Error fetching data:', error);
       }
     };
-
     fetchData();
     const interval = setInterval(fetchData, 5000);
     return () => clearInterval(interval);
   }, []);
 
-  // Filter critical VMs (thresholds: CPU or Memory > 80) that haven't been acknowledged.
+  // Filter critical VMs that are online and in a critical state.
   const criticalVMs = vmData.filter((vm) => {
-    if (acknowledgedAlerts[vm.id]) return false;
-    if (filter === 'All') {
-      return vm.cpu > 80 || vm.memory > 80;
-    } else if (filter === 'CPU') {
-      return vm.cpu > 80;
-    } else if (filter === 'Memory') {
-      return vm.memory > 80;
-    }
-    return false;
+    const online = vm.last_updated && !isVMOffline(vm.last_updated);
+    const isCritical = vm.cpu > cpuThreshold || vm.memory > memoryThreshold;
+    return online && isCritical && !acknowledgedAlerts[vm.id];
   });
 
-  // Handler for acknowledging an alert (resets auto-email timestamp for that VM)
+  // Handle manual acknowledgement: mark alert as acknowledged and reset auto-email timestamp.
   const handleAcknowledge = (id) => {
     setAcknowledgedAlerts((prev) => ({ ...prev, [id]: true }));
     setAutoEmailSent((prev) => ({ ...prev, [id]: 0 }));
   };
 
-  const handleFilterChange = (event) => {
-    setFilter(event.target.value);
+  // Handle filter change.
+  const handleFilterChange = (e) => {
+    setFilter(e.target.value);
   };
 
-  const handleEmailChange = (event) => {
-    setRecipientEmail(event.target.value);
+  // Handle changes to recipient email and store in localStorage.
+  const handleRecipientChange = (e) => {
+    const email = e.target.value;
+    setRecipientEmail(email);
+    localStorage.setItem('recipientEmail', email);
   };
 
-  // Function to send an email alert (for both manual and automatic triggers)
+  // Handle auto email toggle change and store in localStorage.
+  const handleAutoEmailToggle = (e) => {
+    const isEnabled = e.target.checked;
+    setAutoEmail(isEnabled);
+    localStorage.setItem('autoEmail', isEnabled);
+  };
+
+  // Function to send an email alert.
   const sendEmailAlert = async (vm) => {
     try {
       const response = await axios.post('http://localhost:5000/send-alert', {
@@ -67,140 +97,125 @@ function Alerts() {
         cpu: vm.cpu,
         memory: vm.memory,
         disk: vm.disk,
-        recipientEmail: recipientEmail, // Pass the current recipient email
+        recipientEmail: recipientEmail,
       });
-      console.log(`Email alert sent for ${vm.name}`);
+      console.log(`Email alert sent for ${vm.name}:`, response.data.message);
     } catch (error) {
       console.error('Error sending alert email:', error);
     }
   };
 
-  // Automatically send email alerts if autoEmail is enabled.
-  // For each critical VM, check if an email hasn't been sent in the last 5 minutes.
+  // Automatic email effect: for each critical VM, send an email if autoEmail is enabled and enough time has passed.
   useEffect(() => {
     if (autoEmail) {
       const now = Date.now();
+      const frequencyMs = emailFrequency * 60 * 1000; // convert minutes to ms
       criticalVMs.forEach((vm) => {
-        if (recipientEmail && recipientEmail.trim() !== '') {
-          const lastSent = autoEmailSent[vm.id] || 0;
-          // Check if 5 minutes (300000 ms) have passed since the last email
-          if (now - lastSent > 300000) {
+        const lastSent = autoEmailSent[vm.id] || 0;
+        if (now - lastSent > frequencyMs) {
+          if (recipientEmail && recipientEmail.trim() !== '') {
             sendEmailAlert(vm);
             setAutoEmailSent((prev) => ({ ...prev, [vm.id]: now }));
           }
         }
       });
     } else {
-      // Reset autoEmailSent when auto email is turned off
+      // Reset autoEmailSent if auto email is disabled.
       setAutoEmailSent({});
     }
-  }, [autoEmail, criticalVMs, recipientEmail, autoEmailSent]);
+  }, [autoEmail, criticalVMs, emailFrequency, recipientEmail, autoEmailSent]);
 
   return (
     <div style={{ display: 'flex', height: '100vh', backgroundColor: '#f4f4f4' }}>
       <Sidebar />
-      <div style={{ flex: 1 }}>
-        <div style={{ padding: '20px' }}>
-          {/* Recipient Email Input */}
-          <div style={{ marginBottom: '20px' }}>
-            <label style={{ fontWeight: 'bold', marginRight: '10px' }}>
-              Recipient Email:
-            </label>
-            <input
-              type="email"
-              value={recipientEmail}
-              onChange={handleEmailChange}
-              placeholder="Enter email address"
-              style={{ padding: '5px', borderRadius: '5px', border: '1px solid #ccc' }}
-            />
-          </div>
+      <div style={{ flex: 1, padding: '20px' }}>
+        <h2>Critical Alerts</h2>
 
-          {/* Automatic Email Alerts Toggle */}
-          <div style={{ marginBottom: '20px' }}>
-            <label style={{ fontWeight: 'bold', marginRight: '10px' }}>
-              Automatic Email Alerts:
-            </label>
-            <input
-              type="checkbox"
-              checked={autoEmail}
-              onChange={(e) => setAutoEmail(e.target.checked)}
-            />
-          </div>
+        {/* Recipient Email Input */}
+        <div style={{ marginBottom: '20px' }}>
+          <label style={{ fontWeight: 'bold', marginRight: '10px' }}>Recipient Email:</label>
+          <input
+            type="email"
+            value={recipientEmail}
+            onChange={handleRecipientChange}
+            placeholder="Enter email address"
+            style={{ padding: '5px', borderRadius: '5px', border: '1px solid #ccc' }}
+          />
+        </div>
 
-          {/* Filter Selection */}
-          <div style={{ marginBottom: '20px' }}>
-            <label style={{ fontWeight: 'bold', marginRight: '10px' }}>
-              Filter Alerts:
-            </label>
-            <select
-              value={filter}
-              onChange={handleFilterChange}
-              style={{
-                padding: '5px 10px',
-                borderRadius: '5px',
-                border: '1px solid #ccc',
-              }}
-            >
-              <option value="All">All</option>
-              <option value="CPU">{'CPU > 80%'}</option>
-              <option value="Memory">{'Memory > 80%'}</option>
-            </select>
-          </div>
+        {/* Automatic Email Alerts Toggle */}
+        <div style={{ marginBottom: '20px' }}>
+          <label style={{ fontWeight: 'bold', marginRight: '10px' }}>Automatic Email Alerts:</label>
+          <input
+            type="checkbox"
+            checked={autoEmail}
+            onChange={handleAutoEmailToggle}
+          />
+        </div>
 
-          <h2>Critical Alerts</h2>
-          {criticalVMs.length > 0 ? (
-            <ul style={{ padding: 0, listStyle: 'none' }}>
-              {criticalVMs.map((vm) => (
-                <li
-                  key={vm.id}
+        {/* Filter Selection */}
+        <div style={{ marginBottom: '20px' }}>
+          <label style={{ fontWeight: 'bold', marginRight: '10px' }}>Filter Alerts:</label>
+          <select
+            value={filter}
+            onChange={handleFilterChange}
+            style={{ padding: '5px 10px', borderRadius: '5px', border: '1px solid #ccc' }}
+          >
+            <option value="All">All</option>
+            <option value="CPU">{'CPU > ' + cpuThreshold + '%'}</option>
+            <option value="Memory">{'Memory > ' + memoryThreshold + '%'}</option>
+          </select>
+        </div>
+
+        {criticalVMs.length > 0 ? (
+          <ul style={{ listStyle: 'none', padding: 0 }}>
+            {criticalVMs.map((vm) => (
+              <li
+                key={vm.id}
+                style={{
+                  marginBottom: '15px',
+                  padding: '15px',
+                  backgroundColor: '#fff',
+                  border: '1px solid #ddd',
+                  borderRadius: '8px',
+                  boxShadow: '0 2px 4px rgba(0, 0, 0, 0.1)',
+                }}
+              >
+                <strong>{vm.name}</strong> is in critical state (CPU: {vm.cpu}%, Memory: {vm.memory}%)
+                <button
+                  onClick={() => handleAcknowledge(vm.id)}
                   style={{
-                    marginBottom: '15px',
-                    padding: '15px',
-                    backgroundColor: '#fff',
-                    border: '1px solid #ddd',
-                    borderRadius: '8px',
-                    boxShadow: '0 2px 4px rgba(0, 0, 0, 0.1)',
+                    marginLeft: '10px',
+                    padding: '8px 12px',
+                    backgroundColor: '#007bff',
+                    color: '#fff',
+                    border: 'none',
+                    borderRadius: '5px',
+                    cursor: 'pointer',
                   }}
                 >
-                  <strong>{vm.name}</strong> is in a{' '}
-                  <span style={{ color: 'red' }}>Critical</span> state (CPU: {vm.cpu}%, Memory: {vm.memory}%, Disk: {vm.disk}%)
-                  <br />
-                  <button
-                    onClick={() => handleAcknowledge(vm.id)}
-                    style={{
-                      marginTop: '10px',
-                      padding: '8px 12px',
-                      backgroundColor: '#007bff',
-                      color: '#fff',
-                      border: 'none',
-                      borderRadius: '5px',
-                      cursor: 'pointer',
-                    }}
-                  >
-                    Acknowledge
-                  </button>
-                  <button
-                    onClick={() => sendEmailAlert(vm)}
-                    style={{
-                      marginTop: '10px',
-                      marginLeft: '10px',
-                      padding: '8px 12px',
-                      backgroundColor: '#28a745',
-                      color: '#fff',
-                      border: 'none',
-                      borderRadius: '5px',
-                      cursor: 'pointer',
-                    }}
-                  >
-                    Send Email Alert
-                  </button>
-                </li>
-              ))}
-            </ul>
-          ) : (
-            <p>No critical alerts at the moment.</p>
-          )}
-        </div>
+                  Acknowledge
+                </button>
+                <button
+                  onClick={() => sendEmailAlert(vm)}
+                  style={{
+                    marginLeft: '10px',
+                    padding: '8px 12px',
+                    backgroundColor: '#28a745',
+                    color: '#fff',
+                    border: 'none',
+                    borderRadius: '5px',
+                    cursor: 'pointer',
+                  }}
+                >
+                  Send Email
+                </button>
+              </li>
+            ))}
+          </ul>
+        ) : (
+          <p>No critical alerts at the moment.</p>
+        )}
       </div>
     </div>
   );
