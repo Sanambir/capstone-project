@@ -18,6 +18,7 @@
 .env.test.local
 .env.production.local
 alert-server/.env
+.db.json
 
 
 npm-debug.log*
