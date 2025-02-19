@@ -2,6 +2,52 @@ import React, { useState, useEffect } from 'react';
 import axios from 'axios';
 import Sidebar from './Sidebar';
 
+// Custom ToggleSwitch component
+function ToggleSwitch({ checked, onChange }) {
+  const switchContainer = {
+    position: 'relative',
+    display: 'inline-block',
+    width: '50px',
+    height: '24px',
+  };
+
+  const sliderStyle = {
+    position: 'absolute',
+    cursor: 'pointer',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    backgroundColor: checked ? '#28a745' : '#ccc',
+    transition: '.4s',
+    borderRadius: '24px',
+  };
+
+  const circleStyle = {
+    position: 'absolute',
+    height: '18px',
+    width: '18px',
+    left: checked ? '26px' : '4px',
+    bottom: '3px',
+    backgroundColor: 'white',
+    transition: '.4s',
+    borderRadius: '50%',
+  };
+
+  return (
+    <label style={switchContainer}>
+      <input
+        type="checkbox"
+        checked={checked}
+        onChange={onChange}
+        style={{ opacity: 0, width: 0, height: 0 }}
+      />
+      <span style={sliderStyle}></span>
+      <span style={circleStyle}></span>
+    </label>
+  );
+}
+
 function Alerts() {
   const [vmData, setVmData] = useState([]);
   const [acknowledgedAlerts, setAcknowledgedAlerts] = useState({});
@@ -10,6 +56,8 @@ function Alerts() {
   const [autoEmailSent, setAutoEmailSent] = useState({});
   const [recipientEmail, setRecipientEmail] = useState('');
   const [filter, setFilter] = useState('All');
+  // Pagination state added here:
+  const [currentPage, setCurrentPage] = useState(1);
 
   // Dynamic thresholds with defaults
   const cpuThreshold = Number(localStorage.getItem('cpuThreshold')) || 80;
@@ -130,9 +178,8 @@ function Alerts() {
     }
   };
 
-  // Automatic email effect:
-  // For each unacknowledged critical VM, if there's no previous timestamp,
-  // initialize it to now without sending an email.
+  // Automatic email effect: for each unacknowledged critical VM,
+  // if there's no previous timestamp, initialize it to now without sending an email.
   // Otherwise, send an email only if enough time has passed.
   useEffect(() => {
     if (autoEmail) {
@@ -141,7 +188,7 @@ function Alerts() {
       unacknowledgedCritical.forEach((vm) => {
         const lastSent = autoEmailSent[vm.id];
         if (!lastSent) {
-          // Initialize without sending email.
+          // Initialize the timestamp without sending an email.
           setAutoEmailSent((prev) => ({ ...prev, [vm.id]: now }));
         } else if (now - lastSent > frequencyMs) {
           if (recipientEmail && recipientEmail.trim() !== '') {
@@ -153,53 +200,27 @@ function Alerts() {
     }
   }, [autoEmail, unacknowledgedCritical, emailFrequency, recipientEmail]);
 
+  // Pagination logic.
+  const rowsPerPage = 5;
+  const indexOfLastRow = currentPage * rowsPerPage;
+  const indexOfFirstRow = indexOfLastRow - rowsPerPage;
+  const currentRows = criticalVMs.slice(indexOfFirstRow, indexOfLastRow);
+  const totalPages = Math.ceil(criticalVMs.length / rowsPerPage);
+
+  const handlePageChange = (newPage) => {
+    if (newPage > 0 && newPage <= totalPages) {
+      setCurrentPage(newPage);
+    }
+  };
+
   return (
     <div style={{ display: 'flex', height: '100vh', backgroundColor: '#f4f4f4' }}>
       <Sidebar />
-      <div style={{ flex: 1, padding: '20px' }}>
+      {/* Left Column: Alerts List */}
+      <div style={{ flex: 2, padding: '20px' }}>
         <h2>Critical Alerts</h2>
-
-        {/* Recipient Email Input with Save Button */}
         <div style={{ marginBottom: '20px' }}>
-          <label style={{ fontWeight: 'bold', marginRight: '10px' }}>
-            Recipient Email:
-          </label>
-          <input
-            type="email"
-            value={recipientEmail}
-            onChange={handleRecipientChange}
-            placeholder="Enter email address"
-            style={{ padding: '5px', borderRadius: '5px', border: '1px solid #ccc' }}
-          />
-          <button
-            onClick={handleEmailSave}
-            style={{
-              marginLeft: '10px',
-              padding: '5px 10px',
-              cursor: 'pointer',
-              backgroundColor: '#28a745',
-              color: '#fff',
-              border: 'none',
-              borderRadius: '5px',
-            }}
-          >
-            Save Email
-          </button>
-        </div>
-
-        {/* Automatic Email Alerts Toggle */}
-        <div style={{ marginBottom: '20px' }}>
-          <label style={{ fontWeight: 'bold', marginRight: '10px' }}>
-            Automatic Email Alerts:
-          </label>
-          <input type="checkbox" checked={autoEmail} onChange={handleAutoEmailToggle} />
-        </div>
-
-        {/* Filter Selection */}
-        <div style={{ marginBottom: '20px' }}>
-          <label style={{ fontWeight: 'bold', marginRight: '10px' }}>
-            Filter Alerts:
-          </label>
+          <label style={{ fontWeight: 'bold', marginRight: '10px' }}>Filter Alerts:</label>
           <select
             value={filter}
             onChange={handleFilterChange}
@@ -211,8 +232,7 @@ function Alerts() {
           </select>
         </div>
 
-        {/* Unacknowledged Critical Alerts Section */}
-        <h3>Critical Alerts</h3>
+        <h3>Unacknowledged Alerts</h3>
         {unacknowledgedCritical.length > 0 ? (
           <ul style={{ listStyle: 'none', padding: 0 }}>
             {unacknowledgedCritical.map((vm) => (
@@ -263,7 +283,6 @@ function Alerts() {
           <p>No critical alerts at the moment.</p>
         )}
 
-        {/* Acknowledged Alerts Section */}
         <h3>Acknowledged Alerts</h3>
         {acknowledgedCritical.length > 0 ? (
           <ul style={{ listStyle: 'none', padding: 0 }}>
@@ -300,6 +319,44 @@ function Alerts() {
         ) : (
           <p>No acknowledged alerts.</p>
         )}
+
+        {/* Pagination */}
+        <div style={{ textAlign: 'center', marginTop: '20px' }}>
+          <button onClick={() => handlePageChange(currentPage - 1)} disabled={currentPage === 1}>
+            Previous
+          </button>
+          <span style={{ margin: '0 10px' }}>
+            Page {currentPage} of {totalPages}
+          </span>
+          <button onClick={() => handlePageChange(currentPage + 1)} disabled={currentPage === totalPages}>
+            Next
+          </button>
+        </div>
+      </div>
+
+      {/* Right Column: User Settings */}
+      <div
+        style={{
+          flex: 1,
+          padding: '20px',
+          borderLeft: '1px solid #ddd',
+          backgroundColor: '#f9f9f9',
+        }}
+      >
+        <h3>User Info</h3>
+        <p>
+          <strong>Saved Email:</strong>{' '}
+          {recipientEmail ? recipientEmail : 'Not set'}
+        </p>
+        <p>
+          <strong>Automatic Email Alerts:</strong> {autoEmail ? 'ON' : 'OFF'}
+        </p>
+        <div style={{ marginTop: '10px' }}>
+          <label style={{ fontWeight: 'bold', marginRight: '10px' }}>
+            Toggle Auto Email:
+          </label>
+          <ToggleSwitch checked={autoEmail} onChange={handleAutoEmailToggle} />
+        </div>
       </div>
     </div>
   );
