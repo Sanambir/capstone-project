@@ -1,31 +1,19 @@
-import React from 'react';
+import React, { useContext } from 'react';
+import { ThemeContext } from '../ThemeContext';
 
-function DashboardOverview({ vmData, cpuThreshold, memoryThreshold }) {
-  const totalVMs = vmData.length;
-  const runningVMs = vmData.filter(vm => vm.status === 'Running').length;
-  const criticalVMs = vmData.filter(vm => vm.cpu > cpuThreshold || vm.memory > memoryThreshold).length;
+function DashboardOverview({ totalVMs = 0, runningVMs = 0, criticalVMs = 0 }) {
+  const { theme } = useContext(ThemeContext);
 
-  const avgCPU =
-    totalVMs > 0
-      ? (vmData.reduce((sum, vm) => sum + (vm.cpu || 0), 0) / totalVMs).toFixed(1)
-      : 0;
-  const avgMemory =
-    totalVMs > 0
-      ? (vmData.reduce((sum, vm) => sum + (vm.memory || 0), 0) / totalVMs).toFixed(1)
-      : 0;
-  const avgDisk =
-    totalVMs > 0
-      ? (vmData.reduce((sum, vm) => sum + (vm.disk || 0), 0) / totalVMs).toFixed(1)
-      : 0;
-
+  // Define styles based on theme
   const cardStyle = {
-    backgroundColor: '#fff',
-    border: '1px solid #ddd',
+    backgroundColor: theme === 'light' ? '#fff' : '#444', // white for light, dark gray for dark mode
+    border: `1px solid ${theme === 'light' ? '#ddd' : '#666'}`,
     borderRadius: '8px',
     padding: '20px',
     margin: '10px',
     flex: '1',
     textAlign: 'center',
+    color: theme === 'light' ? '#000' : '#fff',
   };
 
   return (
@@ -41,18 +29,6 @@ function DashboardOverview({ vmData, cpuThreshold, memoryThreshold }) {
       <div style={cardStyle}>
         <h4>Critical VMs</h4>
         <p>{criticalVMs}</p>
-      </div>
-      <div style={cardStyle}>
-        <h4>Avg CPU (%)</h4>
-        <p>{avgCPU}</p>
-      </div>
-      <div style={cardStyle}>
-        <h4>Avg Memory (%)</h4>
-        <p>{avgMemory}</p>
-      </div>
-      <div style={cardStyle}>
-        <h4>Avg Disk (%)</h4>
-        <p>{avgDisk}</p>
       </div>
     </div>
   );

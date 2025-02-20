@@ -1,105 +1,81 @@
-import React from 'react';
+import React, { useContext } from 'react';
 import { Link } from 'react-router-dom';
+import { ThemeContext } from '../ThemeContext';
 
-function Sidebar() {
+function Sidebar({ overviewData }) {
+  const { theme } = useContext(ThemeContext);
+  const backgroundColor = theme === 'light' ? '#343a40' : '#222';
+  const textColor = '#fff';
+
   return (
     <div
       style={{
         width: '250px',
-        backgroundColor: '#343a40',
-        color: '#fff',
+        backgroundColor: backgroundColor,
+        color: textColor,
         height: '100vh',
         padding: '20px',
       }}
     >
-      <h3 style={{ color: '#fff', marginBottom: '20px' }}>Navigation</h3>
+      <h3 style={{ marginBottom: '20px' }}>Navigation</h3>
+      
       <ul style={{ listStyle: 'none', padding: 0 }}>
         <li style={{ marginBottom: '15px' }}>
-          <Link
-            to="/dashboard"
+          <Link 
+            to="/dashboard" 
             style={{
               color: '#fff',
               textDecoration: 'none',
               padding: '10px',
               display: 'block',
-              borderRadius: '5px',
-              transition: 'background-color 0.2s',
+              borderRadius: '5px'
             }}
-            onMouseEnter={(e) => (e.target.style.backgroundColor = '#495057')}
-            onMouseLeave={(e) => (e.target.style.backgroundColor = 'transparent')}
           >
             Dashboard
           </Link>
         </li>
         <li style={{ marginBottom: '15px' }}>
-          <Link
-            to="/alerts"
+          <Link 
+            to="/alerts" 
             style={{
               color: '#fff',
               textDecoration: 'none',
               padding: '10px',
               display: 'block',
-              borderRadius: '5px',
-              transition: 'background-color 0.2s',
+              borderRadius: '5px'
             }}
-            onMouseEnter={(e) => (e.target.style.backgroundColor = '#495057')}
-            onMouseLeave={(e) => (e.target.style.backgroundColor = 'transparent')}
           >
             Alerts
           </Link>
         </li>
         <li style={{ marginBottom: '15px' }}>
-          <Link
-            to="/manage"
+          <Link 
+            to="/manage" 
             style={{
               color: '#fff',
               textDecoration: 'none',
               padding: '10px',
               display: 'block',
-              borderRadius: '5px',
-              transition: 'background-color 0.2s',
+              borderRadius: '5px'
             }}
-            onMouseEnter={(e) => (e.target.style.backgroundColor = '#495057')}
-            onMouseLeave={(e) => (e.target.style.backgroundColor = 'transparent')}
           >
             Manage VMs
           </Link>
         </li>
         <li style={{ marginBottom: '15px' }}>
-          <Link
-            to="/settings"
+          <Link 
+            to="/settings" 
             style={{
               color: '#fff',
               textDecoration: 'none',
               padding: '10px',
               display: 'block',
-              borderRadius: '5px',
-              transition: 'background-color 0.2s',
+              borderRadius: '5px'
             }}
-            onMouseEnter={(e) => (e.target.style.backgroundColor = '#495057')}
-            onMouseLeave={(e) => (e.target.style.backgroundColor = 'transparent')}
           >
             Settings
           </Link>
         </li>
-        <li style={{ marginBottom: '15px' }}>
-          <Link
-            to="/performance/demo-vm-id"
-            style={{
-              color: '#fff',
-              textDecoration: 'none',
-              padding: '10px',
-              display: 'block',
-              borderRadius: '5px',
-              transition: 'background-color 0.2s',
-            }}
-            onMouseEnter={(e) => (e.target.style.backgroundColor = '#495057')}
-            onMouseLeave={(e) => (e.target.style.backgroundColor = 'transparent')}
-          >
-            Performance Chart
-          </Link>
-        </li>
-
       </ul>
     </div>
   );

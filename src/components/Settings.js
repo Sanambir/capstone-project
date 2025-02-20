@@ -1,11 +1,13 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useContext } from 'react';
 import Sidebar from './Sidebar';
+import { ThemeContext } from '../ThemeContext';
 
 function Settings() {
   const [cpuThreshold, setCpuThreshold] = useState(80);
   const [memoryThreshold, setMemoryThreshold] = useState(80);
   const [emailFrequency, setEmailFrequency] = useState(5);
   const [message, setMessage] = useState('');
+  const { theme, toggleTheme } = useContext(ThemeContext);
 
   useEffect(() => {
     // Load settings from localStorage (if available)
@@ -70,6 +72,22 @@ function Settings() {
               style={{ padding: '5px' }}
             />
           </div>
+          <div style={{ marginBottom: '20px' }}>
+        <label style={{ marginRight: '10px', fontWeight: 'bold' }}>Dark Mode:</label>
+        <button 
+          onClick={toggleTheme} 
+          style={{
+            padding: '10px 15px',
+            backgroundColor: theme === 'light' ? '#007bff' : '#444',
+            color: '#fff',
+            border: 'none',
+            borderRadius: '5px',
+            cursor: 'pointer'
+          }}
+        >
+          {theme === 'light' ? 'Enable Dark Mode' : 'Disable Dark Mode'}
+        </button>
+      </div>
           <button
             type="submit"
             style={{
