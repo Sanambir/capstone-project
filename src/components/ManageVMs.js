@@ -1,17 +1,19 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useContext } from 'react';
 import axios from 'axios';
 import Sidebar from './Sidebar';
+import { ThemeContext } from '../ThemeContext';
+import { FaBars } from 'react-icons/fa';
 
 function ManageVMs() {
+  const { theme } = useContext(ThemeContext);
   const [vms, setVMs] = useState([]);
   const [newVM, setNewVM] = useState({ name: '', os: '' });
   const [error, setError] = useState('');
-  // State to track the currently editing VM
   const [editingVM, setEditingVM] = useState(null);
-  // State to hold the edited data
   const [editedData, setEditedData] = useState({ name: '', os: '' });
+  const [sidebarOpen, setSidebarOpen] = useState(true);
 
-  // Fetch the list of VMs from JSON Server
+  // Fetch VMs from JSON Server
   const fetchVMs = async () => {
     try {
       const response = await axios.get('http://localhost:3001/vms');
@@ -68,7 +70,7 @@ function ManageVMs() {
     }
   };
 
-  // Start editing a VM: set the editingVM state and pre-populate editedData
+  // Start editing a VM: set editingVM and pre-populate editedData
   const startEditing = (vm) => {
     setEditingVM(vm.id);
     setEditedData({ name: vm.name, os: vm.os });
@@ -82,8 +84,9 @@ function ManageVMs() {
   // Update the VM via a PUT request
   const updateVM = async (id) => {
     try {
+      const vmToUpdate = vms.find((vm) => vm.id === id);
       await axios.put(`http://localhost:3001/vms/${id}`, {
-        ...vms.find((vm) => vm.id === id),
+        ...vmToUpdate,
         ...editedData,
         last_updated: new Date().toISOString(),
       });
@@ -95,11 +98,38 @@ function ManageVMs() {
     }
   };
 
+  // Toggle sidebar visibility via burger menu.
+  const toggleSidebar = () => setSidebarOpen((prev) => !prev);
+
+  // Compute overview data for the Sidebar (VM stats as in Alerts.js code)
+  // Here we assume:
+  // - Total VMs: total count.
+  // - Running VMs: those with a last_updated and with status "Running" (for simplicity).
+  // - Critical VMs: those whose status is not "Running" (or you can adjust logic as needed).
+  const overviewData = {
+    totalVMs: vms.length,
+    runningVMs: vms.filter((vm) => vm.status === 'Running').length,
+    criticalVMs: vms.filter((vm) => vm.status !== 'Running').length,
+  };
+
+  // Container style based on theme.
+  const containerStyle = {
+    flex: 1,
+    padding: '20px',
+    backgroundColor: theme === 'light' ? '#f4f4f4' : '#222',
+    color: theme === 'light' ? '#000' : '#fff',
+    minHeight: '100vh',
+    transition: 'background-color 0.3s ease, color 0.3s ease',
+  };
+
   return (
     <div style={{ display: 'flex' }}>
-      <Sidebar />
-      <div style={{ flex: 1, padding: '20px' }}>
-        <h2>Manage Virtual Machines</h2>
+      {sidebarOpen && <Sidebar overviewData={overviewData} onClose={toggleSidebar} />}
+      <div style={containerStyle}>
+        <div style={{ display: 'flex', alignItems: 'center', marginBottom: '20px' }}>
+          <FaBars onClick={toggleSidebar} style={{ fontSize: '24px', cursor: 'pointer', marginRight: '10px' }} />
+          <h2 style={{ margin: 0 }}>Manage Virtual Machines</h2>
+        </div>
         {error && <p style={{ color: 'red' }}>{error}</p>}
 
         {/* Form to add a new VM */}
@@ -112,6 +142,7 @@ function ManageVMs() {
               value={newVM.name}
               onChange={handleInputChange}
               required
+              style={{ padding: '5px', borderRadius: '5px', border: '1px solid #ccc' }}
             />
           </div>
           <div style={{ marginBottom: '10px' }}>
@@ -122,9 +153,10 @@ function ManageVMs() {
               value={newVM.os}
               onChange={handleInputChange}
               required
+              style={{ padding: '5px', borderRadius: '5px', border: '1px solid #ccc' }}
             />
           </div>
-          <button type="submit" style={{ padding: '8px 12px', cursor: 'pointer' }}>
+          <button type="submit" style={{ padding: '8px 12px', cursor: 'pointer', backgroundColor: '#007bff', color: '#fff', border: 'none', borderRadius: '5px' }}>
             Add VM
           </button>
         </form>
@@ -141,90 +173,56 @@ function ManageVMs() {
                   padding: '10px',
                   border: '1px solid #ddd',
                   borderRadius: '5px',
+                  backgroundColor: theme === 'light' ? '#fff' : '#333',
+                  display: 'flex',
+                  justifyContent: 'space-between',
+                  alignItems: 'center',
                 }}
               >
                 {editingVM === vm.id ? (
-                  // Render edit form if this VM is being edited
                   <div>
                     <input
                       type="text"
                       name="name"
                       value={editedData.name}
                       onChange={handleEditChange}
-                      style={{ marginRight: '10px' }}
+                      style={{ marginRight: '10px', padding: '5px', borderRadius: '5px', border: '1px solid #ccc' }}
                     />
                     <input
                       type="text"
                       name="os"
                       value={editedData.os}
                       onChange={handleEditChange}
-                      style={{ marginRight: '10px' }}
+                      style={{ marginRight: '10px', padding: '5px', borderRadius: '5px', border: '1px solid #ccc' }}
                     />
                     <button
                       onClick={() => updateVM(vm.id)}
-                      style={{
-                        padding: '6px 10px',
-                        cursor: 'pointer',
-                        backgroundColor: '#28a745',
-                        color: '#fff',
-                        border: 'none',
-                        borderRadius: '3px',
-                        marginRight: '5px',
-                      }}
+                      style={{ padding: '6px 10px', backgroundColor: '#28a745', color: '#fff', border: 'none', borderRadius: '3px', marginRight: '5px', cursor: 'pointer' }}
                     >
                       Save
                     </button>
                     <button
                       onClick={() => setEditingVM(null)}
-                      style={{
-                        padding: '6px 10px',
-                        cursor: 'pointer',
-                        backgroundColor: '#6c757d',
-                        color: '#fff',
-                        border: 'none',
-                        borderRadius: '3px',
-                      }}
+                      style={{ padding: '6px 10px', backgroundColor: '#6c757d', color: '#fff', border: 'none', borderRadius: '3px', cursor: 'pointer' }}
                     >
                       Cancel
                     </button>
                   </div>
                 ) : (
-                  // Display VM details
-                  <div
-                    style={{
-                      display: 'flex',
-                      justifyContent: 'space-between',
-                      alignItems: 'center',
-                    }}
-                  >
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', width: '100%' }}>
                     <span>
                       {vm.name} ({vm.os})
                     </span>
                     <div>
                       <button
                         onClick={() => startEditing(vm)}
-                        style={{
-                          padding: '6px 10px',
-                          cursor: 'pointer',
-                          backgroundColor: '#007bff',
-                          color: '#fff',
-                          border: 'none',
-                          borderRadius: '3px',
-                          marginRight: '5px',
-                        }}
+                        style={{ padding: '6px 10px', backgroundColor: '#007bff', color: '#fff', border: 'none', borderRadius: '3px', marginRight: '5px', cursor: 'pointer' }}
                       >
                         Edit
                       </button>
                       <button
                         onClick={() => deleteVM(vm.id)}
-                        style={{
-                          padding: '6px 10px',
-                          cursor: 'pointer',
-                          backgroundColor: '#dc3545',
-                          color: '#fff',
-                          border: 'none',
-                          borderRadius: '3px',
-                        }}
+                        style={{ padding: '6px 10px', backgroundColor: '#dc3545', color: '#fff', border: 'none', borderRadius: '3px', cursor: 'pointer' }}
                       >
                         Delete
                       </button>

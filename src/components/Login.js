@@ -10,16 +10,28 @@ function Login() {
   const handleLogin = () => {
     // Mock authentication logic
     if (username === 'admin' && password === 'password') {
-      localStorage.setItem('authToken', 'mockToken123'); // Save auth token
-      navigate('/dashboard'); // Redirect to dashboard
+      localStorage.setItem('authToken', 'mockToken123');
+      navigate('/dashboard');
     } else {
-      setError('Invalid username or password'); // Show error
+      setError('Invalid username or password');
     }
   };
 
   return (
-    <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '100vh' }}>
-      <div style={{ width: '300px', padding: '20px', border: '1px solid #ddd', borderRadius: '10px' }}>
+    <div style={{
+      display: 'flex', 
+      justifyContent: 'center', 
+      alignItems: 'center', 
+      height: '100vh', 
+      backgroundColor: '#f4f4f4'
+    }}>
+      <div style={{
+        width: '300px', 
+        padding: '20px', 
+        border: '1px solid #ddd', 
+        borderRadius: '10px', 
+        backgroundColor: '#fff'
+      }}>
         <h2>Login</h2>
         {error && <p style={{ color: 'red' }}>{error}</p>}
         <div>
@@ -41,20 +53,20 @@ function Login() {
           />
         </div>
         <div style={{ display: 'flex', justifyContent: 'center' }}>
-                <button
-                    onClick={handleLogin} // Use onClick instead of onSubmit
-                    style={{
-                    width: '30%',
-                    padding: '10px',
-                    backgroundColor: '#007bff',
-                    color: '#fff',
-                    border: 'none',
-                    borderRadius: '5px',
-                    textAlign: 'center',
-                    }}
-                >
+          <button
+            onClick={handleLogin}
+            style={{
+              width: '30%',
+              padding: '10px',
+              backgroundColor: '#007bff',
+              color: '#fff',
+              border: 'none',
+              borderRadius: '5px',
+              textAlign: 'center',
+            }}
+          >
             Login
-            </button>
+          </button>
         </div>
       </div>
     </div>

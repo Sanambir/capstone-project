@@ -4,9 +4,8 @@ import { ThemeContext } from '../ThemeContext';
 function DashboardOverview({ totalVMs = 0, runningVMs = 0, criticalVMs = 0 }) {
   const { theme } = useContext(ThemeContext);
 
-  // Define styles based on theme
   const cardStyle = {
-    backgroundColor: theme === 'light' ? '#fff' : '#444', // white for light, dark gray for dark mode
+    backgroundColor: theme === 'light' ? '#fff' : '#444',
     border: `1px solid ${theme === 'light' ? '#ddd' : '#666'}`,
     borderRadius: '8px',
     padding: '20px',

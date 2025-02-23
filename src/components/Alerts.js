@@ -1,6 +1,13 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useContext } from 'react';
 import axios from 'axios';
 import Sidebar from './Sidebar';
+import { ThemeContext } from '../ThemeContext';
+import { FaBars } from 'react-icons/fa';
+import ReactModal from 'react-modal';
+import { ToastContainer, toast } from 'react-toastify';
+import 'react-toastify/dist/ReactToastify.css';
+
+ReactModal.setAppElement('#root');
 
 // Custom ToggleSwitch component
 function ToggleSwitch({ checked, onChange }) {
@@ -48,7 +55,24 @@ function ToggleSwitch({ checked, onChange }) {
   );
 }
 
+const OFFLINE_THRESHOLD = 15000; // 15 seconds
+
+// Helper: Check if a VM is offline.
+function isVMOffline(lastUpdated) {
+  const now = new Date();
+  const lastUpdate = new Date(lastUpdated);
+  return now - lastUpdate > OFFLINE_THRESHOLD;
+}
+
+// Helper: Determine if a VM is critical.
+function isCritical(vm, cpuThreshold, memoryThreshold) {
+  if (!vm.last_updated) return false;
+  const offline = isVMOffline(vm.last_updated);
+  return !offline && (vm.cpu > cpuThreshold || vm.memory > memoryThreshold);
+}
+
 function Alerts() {
+  const { theme } = useContext(ThemeContext);
   const [vmData, setVmData] = useState([]);
   const [acknowledgedAlerts, setAcknowledgedAlerts] = useState({});
   const [autoEmail, setAutoEmail] = useState(false);
@@ -57,12 +81,14 @@ function Alerts() {
   const [filter, setFilter] = useState('All');
   const [currentPage, setCurrentPage] = useState(1);
   const [editingEmail, setEditingEmail] = useState(false);
+  const [sidebarOpen, setSidebarOpen] = useState(true);
+  const [selectedAlert, setSelectedAlert] = useState(null);
+  const rowsPerPage = 5;
+  const emailFrequency = Number(localStorage.getItem('emailFrequency')) || 5; // minutes
 
-  // Dynamic thresholds and email frequency with defaults
+  // Define thresholds (default values)
   const cpuThreshold = Number(localStorage.getItem('cpuThreshold')) || 80;
   const memoryThreshold = Number(localStorage.getItem('memoryThreshold')) || 80;
-  const emailFrequency = Number(localStorage.getItem('emailFrequency')) || 5; // in minutes
-  const OFFLINE_THRESHOLD = 15000; // 15 seconds (ms)
 
   // On mount, load saved settings from localStorage.
   useEffect(() => {
@@ -80,17 +106,10 @@ function Alerts() {
     }
   }, []);
 
-  // Persist autoEmailSent changes to localStorage.
+  // Persist autoEmailSent to localStorage.
   useEffect(() => {
     localStorage.setItem('autoEmailSent', JSON.stringify(autoEmailSent));
   }, [autoEmailSent]);
-
-  // Helper: Check if a VM is offline.
-  const isVMOffline = (lastUpdated) => {
-    const now = new Date();
-    const lastUpdate = new Date(lastUpdated);
-    return now - lastUpdate > OFFLINE_THRESHOLD;
-  };
 
   // Fetch VM data every 5 seconds.
   useEffect(() => {
@@ -112,14 +131,13 @@ function Alerts() {
     return () => clearInterval(interval);
   }, []);
 
-  // Determine all critical VMs (online and exceeding threshold)
+  // For alerts, consider critical VMs (online and CPU or Memory exceed thresholds)
   const allCriticalVMs = vmData.filter((vm) => {
     const online = vm.last_updated && !isVMOffline(vm.last_updated);
-    const isCritical = vm.cpu > cpuThreshold || vm.memory > memoryThreshold;
-    return online && isCritical;
+    return online && (vm.cpu > cpuThreshold || vm.memory > memoryThreshold);
   });
 
-  // Apply user filter to critical VMs.
+  // Apply filter: "All", "CPU" (critical by CPU), "Memory" (critical by Memory)
   const filteredCriticalVMs = allCriticalVMs.filter((vm) => {
     if (filter === 'All') return true;
     if (filter === 'CPU') return vm.cpu > cpuThreshold;
@@ -127,16 +145,11 @@ function Alerts() {
     return true;
   });
 
-  // Separate filtered VMs into unacknowledged and acknowledged.
-  const unacknowledgedCritical = filteredCriticalVMs.filter(
-    (vm) => !acknowledgedAlerts[vm.id]
-  );
-  const acknowledgedCritical = filteredCriticalVMs.filter(
-    (vm) => acknowledgedAlerts[vm.id]
-  );
+  // Separate unacknowledged and acknowledged alerts.
+  const unacknowledgedCritical = filteredCriticalVMs.filter((vm) => !acknowledgedAlerts[vm.id]);
+  const acknowledgedCritical = filteredCriticalVMs.filter((vm) => acknowledgedAlerts[vm.id]);
 
   // Pagination for unacknowledged alerts.
-  const rowsPerPage = 5;
   const indexOfLastRow = currentPage * rowsPerPage;
   const indexOfFirstRow = indexOfLastRow - rowsPerPage;
   const currentRows = unacknowledgedCritical.slice(indexOfFirstRow, indexOfLastRow);
@@ -169,10 +182,7 @@ function Alerts() {
   };
 
   // Handlers for recipient email editing.
-  const handleRecipientChange = (e) => {
-    setRecipientEmail(e.target.value);
-  };
-
+  const handleRecipientChange = (e) => setRecipientEmail(e.target.value);
   const handleEmailSave = () => {
     localStorage.setItem('recipientEmail', recipientEmail);
     setEditingEmail(false);
@@ -202,17 +212,14 @@ function Alerts() {
     }
   };
 
-  // Automatic email effect:
-  // For each unacknowledged critical VM, if no timestamp exists, initialize it (without sending an email).
-  // Otherwise, send an email only if enough time has passed.
+  // Automatic email effect.
   useEffect(() => {
     if (autoEmail) {
       const now = Date.now();
-      const frequencyMs = emailFrequency * 60 * 1000; // Convert minutes to ms.
+      const frequencyMs = emailFrequency * 60 * 1000;
       unacknowledgedCritical.forEach((vm) => {
         const lastSent = autoEmailSent[vm.id];
         if (!lastSent) {
-          // Initialize without sending an email.
           setAutoEmailSent((prev) => ({ ...prev, [vm.id]: now }));
         } else if (now - lastSent > frequencyMs) {
           if (recipientEmail && recipientEmail.trim() !== '') {
@@ -224,12 +231,49 @@ function Alerts() {
     }
   }, [autoEmail, unacknowledgedCritical, emailFrequency, recipientEmail]);
 
+  // Toggle sidebar visibility.
+  const toggleSidebar = () => setSidebarOpen((prev) => !prev);
+
+  // Compute overview data for Sidebar.
+  const overviewData = {
+    totalVMs: vmData.length,
+    runningVMs: vmData.filter(
+      (vm) => vm.last_updated && !isVMOffline(vm.last_updated) && (vm.cpu <= cpuThreshold && vm.memory <= memoryThreshold)
+    ).length,
+    criticalVMs: vmData.filter((vm) => isCritical(vm, cpuThreshold, memoryThreshold)).length,
+  };
+
+  // Container style based on theme.
+  const mainContainerStyle = {
+    flex: 2,
+    padding: '20px',
+    backgroundColor: theme === 'light' ? '#f4f4f4' : '#222',
+    color: theme === 'light' ? '#000' : '#fff',
+    minHeight: '100vh',
+    transition: 'background-color 0.3s ease, color 0.3s ease'
+  };
+
+  // User info panel style (Right Column).
+  const userInfoStyle = {
+    flex: 1,
+    padding: '20px',
+    backgroundColor: theme === 'light' ? '#f9f9f9' : '#333',
+    borderLeft: '1px solid #ddd',
+    minHeight: '100vh',
+    transition: 'background-color 0.3s ease, color 0.3s ease'
+  };
+
   return (
-    <div style={{ display: 'flex', height: '100vh', backgroundColor: '#f4f4f4' }}>
-      <Sidebar />
-      {/* Left Column: Alerts List */}
-      <div style={{ flex: 2, padding: '20px' }}>
-        <h2>Critical Alerts</h2>
+    <div style={{ display: 'flex' }}>
+      {sidebarOpen && <Sidebar overviewData={overviewData} onClose={toggleSidebar} />}
+      <div style={mainContainerStyle}>
+        {/* Header with burger menu */}
+        <div style={{ display: 'flex', alignItems: 'center', marginBottom: '20px' }}>
+          <FaBars onClick={toggleSidebar} style={{ fontSize: '24px', cursor: 'pointer', marginRight: '10px' }} />
+          <h2 style={{ margin: 0 }}>Alerts</h2>
+        </div>
+
+        {/* Filter Selection */}
         <div style={{ marginBottom: '20px' }}>
           <label style={{ fontWeight: 'bold', marginRight: '10px' }}>Filter Alerts:</label>
           <select
@@ -255,7 +299,7 @@ function Alerts() {
                   backgroundColor: '#fff',
                   border: '1px solid #ddd',
                   borderRadius: '8px',
-                  boxShadow: '0 2px 4px rgba(0, 0, 0, 0.1)',
+                  boxShadow: '0 2px 4px rgba(0,0,0,0.1)',
                 }}
               >
                 <strong>{vm.name}</strong> is in critical state (CPU: {vm.cpu}%, Memory: {vm.memory}%)
@@ -294,15 +338,15 @@ function Alerts() {
           <p>No critical alerts at the moment.</p>
         )}
 
-        {/* Pagination for unacknowledged alerts */}
+        {/* Pagination */}
         <div style={{ textAlign: 'center', marginTop: '20px' }}>
-          <button onClick={() => handlePageChange(currentPage - 1)} disabled={currentPage === 1}>
+          <button onClick={() => handlePageChange(currentPage - 1)} disabled={currentPage === 1} style={{ padding: '5px 10px', marginRight: '10px' }}>
             Previous
           </button>
           <span style={{ margin: '0 10px' }}>
             Page {currentPage} of {totalPages}
           </span>
-          <button onClick={() => handlePageChange(currentPage + 1)} disabled={currentPage === totalPages}>
+          <button onClick={() => handlePageChange(currentPage + 1)} disabled={currentPage === totalPages} style={{ padding: '5px 10px', marginLeft: '10px' }}>
             Next
           </button>
         </div>
@@ -319,7 +363,7 @@ function Alerts() {
                   backgroundColor: '#f8f9fa',
                   border: '1px solid #ddd',
                   borderRadius: '8px',
-                  boxShadow: '0 2px 4px rgba(0, 0, 0, 0.05)',
+                  boxShadow: '0 2px 4px rgba(0,0,0,0.05)',
                 }}
               >
                 <strong>{vm.name}</strong> (Acknowledged)
@@ -345,20 +389,12 @@ function Alerts() {
         )}
       </div>
 
-      {/* Right Column: User Settings */}
-      <div
-        style={{
-          flex: 1,
-          padding: '20px',
-          borderLeft: '1px solid #ddd',
-          backgroundColor: '#f9f9f9',
-        }}
-      >
+      {/* Right Column: User Info Panel */}
+      <div style={userInfoStyle}>
         <h3>User Info</h3>
         <div style={{ marginBottom: '15px' }}>
           <p>
-            <strong>Saved Email:</strong>{' '}
-            {recipientEmail ? recipientEmail : 'Not set'}
+            <strong>Saved Email:</strong> {recipientEmail ? recipientEmail : 'Not set'}
           </p>
           {editingEmail ? (
             <>
@@ -403,12 +439,69 @@ function Alerts() {
           <strong>Automatic Email Alerts:</strong> {autoEmail ? 'ON' : 'OFF'}
         </p>
         <div style={{ marginTop: '10px' }}>
-          <label style={{ fontWeight: 'bold', marginRight: '10px' }}>
-            Toggle Auto Email:
-          </label>
+          <label style={{ fontWeight: 'bold', marginRight: '10px' }}>Toggle Auto Email:</label>
           <ToggleSwitch checked={autoEmail} onChange={handleAutoEmailToggle} />
         </div>
       </div>
+
+      {/* Modal for Alert Details */}
+      <ReactModal
+        isOpen={!!selectedAlert}
+        onRequestClose={() => setSelectedAlert(null)}
+        contentLabel="Alert Details"
+        style={{
+          overlay: { backgroundColor: 'rgba(0,0,0,0.5)' },
+          content: { backgroundColor: theme === 'light' ? '#fff' : '#444', color: theme === 'light' ? '#000' : '#fff' }
+        }}
+      >
+        {selectedAlert && (
+          <>
+            <h2>{selectedAlert.name} Details</h2>
+            <p>
+              <strong>CPU Usage:</strong>{' '}
+              {selectedAlert.last_updated && isVMOffline(selectedAlert.last_updated) ? '0%' : `${selectedAlert.cpu || 0}%`}
+            </p>
+            <p>
+              <strong>Memory Usage:</strong>{' '}
+              {selectedAlert.last_updated && isVMOffline(selectedAlert.last_updated) ? '0%' : `${selectedAlert.memory || 0}%`}
+            </p>
+            <p>
+              <strong>Disk Usage:</strong>{' '}
+              {selectedAlert.last_updated && isVMOffline(selectedAlert.last_updated) ? '0%' : `${selectedAlert.disk || 0}%`}
+            </p>
+            <p>
+              <strong>Network Usage:</strong>
+            </p>
+            {selectedAlert.last_updated && isVMOffline(selectedAlert.last_updated) ? (
+              <p>Offline</p>
+            ) : (
+              <div>
+                <p>
+                  <strong>Bytes Sent:</strong> {selectedAlert.network?.bytes_sent?.toLocaleString() || 0} B
+                </p>
+                <p>
+                  <strong>Bytes Received:</strong> {selectedAlert.network?.bytes_recv?.toLocaleString() || 0} B
+                </p>
+              </div>
+            )}
+            <button
+              onClick={() => setSelectedAlert(null)}
+              style={{
+                marginTop: '15px',
+                padding: '5px 10px',
+                backgroundColor: '#007bff',
+                color: '#fff',
+                border: 'none',
+                borderRadius: '5px',
+                cursor: 'pointer'
+              }}
+            >
+              Close
+            </button>
+          </>
+        )}
+      </ReactModal>
+      <ToastContainer />
     </div>
   );
 }
