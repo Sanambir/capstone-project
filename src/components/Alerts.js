@@ -254,6 +254,13 @@ function Alerts() {
   // Card background color (for simplicity, we always use the default for alerts here).
   const defaultCardBg = theme === 'light' ? '#fff' : '#333';
 
+  const handleAutoEmailToggle = (e) => {
+    const isEnabled = e.target.checked;
+    setAutoEmail(isEnabled);
+    localStorage.setItem('autoEmail', isEnabled);
+  };
+  
+
   return (
     <Box sx={{ display: 'flex' }}>
       {sidebarOpen && <Sidebar overviewData={overviewData} onClose={toggleSidebar} />}
