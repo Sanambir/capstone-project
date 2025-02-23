@@ -6,52 +6,60 @@ import { FaBars } from 'react-icons/fa';
 import ReactModal from 'react-modal';
 import { ToastContainer, toast } from 'react-toastify';
 import 'react-toastify/dist/ReactToastify.css';
+import {
+  Box,
+  Typography,
+  Button,
+  TextField,
+  MenuItem,
+  Select as MuiSelect
+} from '@mui/material';
 
 ReactModal.setAppElement('#root');
 
-// Custom ToggleSwitch component
+// Custom ToggleSwitch component using MUI's Box
 function ToggleSwitch({ checked, onChange }) {
-  const switchContainer = {
-    position: 'relative',
-    display: 'inline-block',
-    width: '50px',
-    height: '24px',
-  };
-
-  const sliderStyle = {
-    position: 'absolute',
-    cursor: 'pointer',
-    top: 0,
-    left: 0,
-    right: 0,
-    bottom: 0,
-    backgroundColor: checked ? '#28a745' : '#ccc',
-    transition: '.4s',
-    borderRadius: '24px',
-  };
-
-  const circleStyle = {
-    position: 'absolute',
-    height: '18px',
-    width: '18px',
-    left: checked ? '26px' : '4px',
-    bottom: '3px',
-    backgroundColor: 'white',
-    transition: '.4s',
-    borderRadius: '50%',
-  };
-
   return (
-    <label style={switchContainer}>
+    <Box
+      sx={{
+        position: 'relative',
+        display: 'inline-block',
+        width: '50px',
+        height: '24px',
+      }}
+    >
       <input
         type="checkbox"
         checked={checked}
         onChange={onChange}
         style={{ opacity: 0, width: 0, height: 0 }}
       />
-      <span style={sliderStyle}></span>
-      <span style={circleStyle}></span>
-    </label>
+      <Box
+        sx={{
+          position: 'absolute',
+          cursor: 'pointer',
+          top: 0,
+          left: 0,
+          right: 0,
+          bottom: 0,
+          backgroundColor: checked ? '#28a745' : '#ccc',
+          transition: '.4s',
+          borderRadius: '24px',
+        }}
+      />
+      <Box
+        sx={{
+          position: 'absolute',
+          height: '18px',
+          width: '18px',
+          left: checked ? '26px' : '4px',
+          bottom: '3px',
+          backgroundColor: 'white',
+          transition: '.4s',
+          borderRadius: '50%',
+        }}
+      />
+    </Box>
   );
 }
 
@@ -86,27 +94,20 @@ function Alerts() {
   const rowsPerPage = 5;
   const emailFrequency = Number(localStorage.getItem('emailFrequency')) || 5; // minutes
 
-  // Define thresholds (default: 80 for CPU/Memory)
+  // Define thresholds (defaults: 80 for CPU/Memory)
   const cpuThreshold = Number(localStorage.getItem('cpuThreshold')) || 80;
   const memoryThreshold = Number(localStorage.getItem('memoryThreshold')) || 80;
 
   // Load saved settings on mount.
   useEffect(() => {
     const storedRecipientEmail = localStorage.getItem('recipientEmail');
-    if (storedRecipientEmail) {
-      setRecipientEmail(storedRecipientEmail);
-    }
+    if (storedRecipientEmail) setRecipientEmail(storedRecipientEmail);
     const storedAutoEmail = localStorage.getItem('autoEmail');
-    if (storedAutoEmail !== null) {
-      setAutoEmail(storedAutoEmail === 'true');
-    }
+    if (storedAutoEmail !== null) setAutoEmail(storedAutoEmail === 'true');
     const storedAutoEmailSent = localStorage.getItem('autoEmailSent');
-    if (storedAutoEmailSent) {
-      setAutoEmailSent(JSON.parse(storedAutoEmailSent));
-    }
+    if (storedAutoEmailSent) setAutoEmailSent(JSON.parse(storedAutoEmailSent));
   }, []);
 
-  // Persist autoEmailSent changes.
   useEffect(() => {
     localStorage.setItem('autoEmailSent', JSON.stringify(autoEmailSent));
   }, [autoEmailSent]);
@@ -131,13 +132,13 @@ function Alerts() {
     return () => clearInterval(interval);
   }, []);
 
-  // Determine critical alerts: online VMs exceeding thresholds.
+  // Determine critical alerts: online VMs exceeding CPU or Memory thresholds.
   const allCriticalVMs = vmData.filter((vm) => {
     const online = vm.last_updated && !isVMOffline(vm.last_updated);
     return online && (vm.cpu > cpuThreshold || vm.memory > memoryThreshold);
   });
 
-  // Apply filter.
+  // Apply filter: "All", "CPU", "Memory"
   const filteredCriticalVMs = allCriticalVMs.filter((vm) => {
     if (filter === 'All') return true;
     if (filter === 'CPU') return vm.cpu > cpuThreshold;
@@ -154,9 +155,7 @@ function Alerts() {
   const totalPages = Math.ceil(unacknowledgedCritical.length / rowsPerPage);
 
   const handlePageChange = (newPage) => {
-    if (newPage > 0 && newPage <= totalPages) {
-      setCurrentPage(newPage);
-    }
+    if (newPage > 0 && newPage <= totalPages) setCurrentPage(newPage);
   };
 
   const handleAcknowledge = (id) => {
@@ -197,7 +196,7 @@ function Alerts() {
         cpu: vm.cpu,
         memory: vm.memory,
         disk: vm.disk,
-        recipientEmail: recipientEmail,
+        recipientEmail,
       });
       console.log(`Email alert sent for ${vm.name}:`, response.data.message);
     } catch (error) {
@@ -225,7 +224,6 @@ function Alerts() {
 
   const toggleSidebar = () => setSidebarOpen((prev) => !prev);
 
-  // Compute overview data for Sidebar.
   const overviewData = {
     totalVMs: vmData.length,
     runningVMs: vmData.filter(
@@ -237,19 +235,19 @@ function Alerts() {
     criticalVMs: vmData.filter((vm) => isCritical(vm, cpuThreshold, memoryThreshold)).length,
   };
 
-  // Main container style (center column).
+  // Main container style (center column) – reserves left margin for Sidebar and fixed width for User Info panel.
   const mainContainerStyle = {
     marginLeft: sidebarOpen ? '250px' : '0',
-    marginRight: '0px', // Reserve fixed width for user info panel
+    marginRight: '300px', // Reserve 300px for User Info panel
     padding: '20px',
     backgroundColor: theme === 'light' ? '#f4f4f4' : '#222',
     color: theme === 'light' ? '#000' : '#fff',
     minHeight: '100vh',
     transition: 'margin 0.3s ease, background-color 0.3s ease, color 0.3s ease',
-    flex: 1,
+    flex: 2,
   };
 
-  // User info panel style (right column) with fixed width.
+  // User Info panel style (right column) – fixed width.
   const userInfoStyle = {
     width: '300px',
     padding: '20px',
@@ -257,6 +255,7 @@ function Alerts() {
     borderLeft: '1px solid #ddd',
     minHeight: '100vh',
     transition: 'background-color 0.3s ease, color 0.3s ease',
+    flex: 1,
   };
 
   // Card background colors.
@@ -265,243 +264,182 @@ function Alerts() {
   const criticalCardBg = theme === 'light' ? '#ffcccc' : '#a94442';
 
   return (
-    <div style={{ display: 'flex' }}>
+    <Box sx={{ display: 'flex' }}>
       {sidebarOpen && <Sidebar overviewData={overviewData} onClose={toggleSidebar} />}
-      <div style={mainContainerStyle}>
-        {/* Header with burger menu */}
-        <div style={{ display: 'flex', alignItems: 'center', marginBottom: '20px' }}>
-          <FaBars onClick={toggleSidebar} style={{ fontSize: '24px', cursor: 'pointer', marginRight: '10px' }} />
-          <h2 style={{ margin: 0 }}>Alerts</h2>
-        </div>
-
-        {/* Filter Selection */}
-        <div style={{ marginBottom: '20px' }}>
-          <label style={{ fontWeight: 'bold', marginRight: '10px' }}>Filter Alerts:</label>
-          <select
+      <Box sx={mainContainerStyle}>
+        <Box sx={{ display: 'flex', alignItems: 'center', mb: 2 }}>
+          <FaBars onClick={toggleSidebar} style={{ fontSize: '24px', cursor: 'pointer', mr: '10px' }} />
+          <Typography variant="h4">Alerts</Typography>
+        </Box>
+        <Box sx={{ mb: 2 }}>
+          <Typography component="label" sx={{ fontWeight: 'bold', mr: 1 }}>
+            Filter Alerts:
+          </Typography>
+          <MuiSelect
             value={filter}
             onChange={handleFilterChange}
-            style={{ padding: '5px 10px', borderRadius: '5px', border: '1px solid #ccc' }}
+            sx={{ width: '200px', p: '5px 10px', borderRadius: '5px' }}
           >
-            <option value="All">All</option>
-            <option value="CPU">{'CPU > ' + cpuThreshold + '%'}</option>
-            <option value="Memory">{'Memory > ' + memoryThreshold + '%'}</option>
-          </select>
-        </div>
-
-        <h3>Unacknowledged Alerts</h3>
+            <MenuItem value="All">All</MenuItem>
+            <MenuItem value="CPU">{`CPU > ${cpuThreshold}%`}</MenuItem>
+            <MenuItem value="Memory">{`Memory > ${memoryThreshold}%`}</MenuItem>
+          </MuiSelect>
+        </Box>
+        <Typography variant="h5" sx={{ mb: 2 }}>
+          Unacknowledged Alerts
+        </Typography>
         {currentRows.length > 0 ? (
-          <ul style={{ listStyle: 'none', padding: 0 }}>
+          <Box component="ul" sx={{ listStyle: 'none', p: 0 }}>
             {currentRows.map((vm) => (
-              <li
+              <Box
                 key={vm.id}
-                style={{
-                  marginBottom: '15px',
-                  padding: '15px',
-                  backgroundColor: '#fff',
+                onClick={() => setSelectedAlert(vm)}
+                sx={{
+                  mb: 2,
+                  p: 2,
                   border: '1px solid #ddd',
                   borderRadius: '8px',
+                  backgroundColor: defaultCardBg,
                   boxShadow: '0 2px 4px rgba(0,0,0,0.1)',
-                }}
-              >
-                <strong>{vm.name}</strong> is in critical state (CPU: {vm.cpu}%, Memory: {vm.memory}%)
-                <button
-                  onClick={() => handleAcknowledge(vm.id)}
-                  style={{
-                    marginLeft: '10px',
-                    padding: '8px 12px',
-                    backgroundColor: '#007bff',
-                    color: '#fff',
-                    border: 'none',
-                    borderRadius: '5px',
-                    cursor: 'pointer',
-                  }}
-                >
-                  Acknowledge
-                </button>
-                <button
-                  onClick={() => sendEmailAlert(vm)}
-                  style={{
-                    marginLeft: '10px',
-                    padding: '8px 12px',
-                    backgroundColor: '#28a745',
-                    color: '#fff',
-                    border: 'none',
-                    borderRadius: '5px',
-                    cursor: 'pointer',
-                  }}
-                >
-                  Send Email
-                </button>
-              </li>
-            ))}
-          </ul>
-        ) : (
-          <p>No critical alerts at the moment.</p>
-        )}
-
-        {/* Pagination */}
-        <div style={{ textAlign: 'center', marginTop: '20px' }}>
-          <button onClick={() => handlePageChange(currentPage - 1)} disabled={currentPage === 1} style={{ padding: '5px 10px', marginRight: '10px' }}>
-            Previous
-          </button>
-          <span style={{ margin: '0 10px' }}>Page {currentPage} of {totalPages}</span>
-          <button onClick={() => handlePageChange(currentPage + 1)} disabled={currentPage === totalPages} style={{ padding: '5px 10px', marginLeft: '10px' }}>
-            Next
-          </button>
-        </div>
-
-        <h3>Acknowledged Alerts</h3>
-        {acknowledgedCritical.length > 0 ? (
-          <ul style={{ listStyle: 'none', padding: 0 }}>
-            {acknowledgedCritical.map((vm) => (
-              <li
-                key={vm.id}
-                style={{
-                  marginBottom: '15px',
-                  padding: '15px',
-                  backgroundColor: '#f8f9fa',
-                  border: '1px solid #ddd',
-                  borderRadius: '8px',
-                  boxShadow: '0 2px 4px rgba(0,0,0,0.05)',
-                }}
-              >
-                <strong>{vm.name}</strong> (Acknowledged)
-                <button
-                  onClick={() => handleUnacknowledge(vm.id)}
-                  style={{
-                    marginLeft: '10px',
-                    padding: '8px 12px',
-                    backgroundColor: '#ffc107',
-                    color: '#000',
-                    border: 'none',
-                    borderRadius: '5px',
-                    cursor: 'pointer',
-                  }}
-                >
-                  Remove Acknowledgement
-                </button>
-              </li>
-            ))}
-          </ul>
-        ) : (
-          <p>No acknowledged alerts.</p>
-        )}
-      </div>
-
-      {/* Right Column: User Info Panel */}
-      <div style={userInfoStyle}>
-        <h3>User Info</h3>
-        <div style={{ marginBottom: '15px' }}>
-          <p>
-            <strong>Saved Email:</strong> {recipientEmail ? recipientEmail : 'Not set'}
-          </p>
-          {editingEmail ? (
-            <>
-              <input
-                type="email"
-                value={recipientEmail}
-                onChange={handleRecipientChange}
-                style={{ padding: '5px', borderRadius: '5px', border: '1px solid #ccc' }}
-              />
-              <button
-                onClick={handleEmailSave}
-                style={{
-                  marginLeft: '10px',
-                  padding: '5px 10px',
-                  backgroundColor: '#28a745',
-                  color: '#fff',
-                  border: 'none',
-                  borderRadius: '5px',
                   cursor: 'pointer',
                 }}
               >
+                <Typography variant="h6">{vm.name}</Typography>
+                <Button variant="contained" onClick={() => handleAcknowledge(vm.id)} sx={{ ml: 1 }}>
+                  Acknowledge
+                </Button>
+                <Button variant="contained" onClick={() => sendEmailAlert(vm)} sx={{ ml: 1 }}>
+                  Send Email
+                </Button>
+              </Box>
+            ))}
+          </Box>
+        ) : (
+          <Typography>No critical alerts at the moment.</Typography>
+        )}
+        <Box sx={{ textAlign: 'center', mt: 2 }}>
+          <Button variant="contained" onClick={() => handlePageChange(currentPage - 1)} disabled={currentPage === 1} sx={{ mr: 1 }}>
+            Previous
+          </Button>
+          <Typography variant="body1" component="span" sx={{ mx: 1 }}>
+            Page {currentPage} of {totalPages}
+          </Typography>
+          <Button variant="contained" onClick={() => handlePageChange(currentPage + 1)} disabled={currentPage === totalPages} sx={{ ml: 1 }}>
+            Next
+          </Button>
+        </Box>
+        <Typography variant="h5" sx={{ mt: 4 }}>
+          Acknowledged Alerts
+        </Typography>
+        {acknowledgedCritical.length > 0 ? (
+          <Box component="ul" sx={{ listStyle: 'none', p: 0 }}>
+            {acknowledgedCritical.map((vm) => (
+              <Box
+                key={vm.id}
+                sx={{
+                  mb: 2,
+                  p: 2,
+                  border: '1px solid #ddd',
+                  borderRadius: '8px',
+                  backgroundColor: '#f8f9fa',
+                  boxShadow: '0 2px 4px rgba(0,0,0,0.05)',
+                }}
+              >
+                <Typography variant="h6">{vm.name} (Acknowledged)</Typography>
+                <Button variant="contained" onClick={() => handleUnacknowledge(vm.id)} sx={{ ml: 1 }}>
+                  Remove Acknowledgement
+                </Button>
+              </Box>
+            ))}
+          </Box>
+        ) : (
+          <Typography>No acknowledged alerts.</Typography>
+        )}
+      </Box>
+      <Box sx={userInfoStyle}>
+        <Typography variant="h5" sx={{ mb: 2 }}>
+          User Info
+        </Typography>
+        <Box sx={{ mb: 2 }}>
+          <Typography variant="body1">
+            <strong>Saved Email:</strong> {recipientEmail ? recipientEmail : 'Not set'}
+          </Typography>
+          {editingEmail ? (
+            <>
+              <TextField
+                type="email"
+                value={recipientEmail}
+                onChange={handleRecipientChange}
+                size="small"
+                sx={{ mt: 1 }}
+              />
+              <Button variant="contained" onClick={handleEmailSave} sx={{ ml: 1, mt: 1 }}>
                 Save
-              </button>
+              </Button>
             </>
           ) : (
-            <button
-              onClick={() => setEditingEmail(true)}
-              style={{
-                padding: '5px 10px',
-                backgroundColor: '#007bff',
-                color: '#fff',
-                border: 'none',
-                borderRadius: '5px',
-                cursor: 'pointer',
-              }}
-            >
+            <Button variant="contained" onClick={() => setEditingEmail(true)} sx={{ mt: 1 }}>
               Edit Email
-            </button>
+            </Button>
           )}
-        </div>
-        <p>
+        </Box>
+        <Typography variant="body1" sx={{ mb: 1 }}>
           <strong>Automatic Email Alerts:</strong> {autoEmail ? 'ON' : 'OFF'}
-        </p>
-        <div style={{ marginTop: '10px' }}>
-          <label style={{ fontWeight: 'bold', marginRight: '10px' }}>Toggle Auto Email:</label>
+        </Typography>
+        <Box sx={{ display: 'flex', alignItems: 'center', mt: 1 }}>
+          <Typography variant="body1" sx={{ fontWeight: 'bold', mr: 1 }}>
+            Toggle Auto Email:
+          </Typography>
           <ToggleSwitch checked={autoEmail} onChange={handleAutoEmailToggle} />
-        </div>
-      </div>
-
-      {/* Modal for Alert Details */}
+        </Box>
+      </Box>
       <ReactModal
         isOpen={!!selectedAlert}
         onRequestClose={() => setSelectedAlert(null)}
         contentLabel="Alert Details"
         style={{
           overlay: { backgroundColor: 'rgba(0,0,0,0.5)' },
-          content: { backgroundColor: theme === 'light' ? '#fff' : '#444', color: theme === 'light' ? '#000' : '#fff' }
+          content: { backgroundColor: theme === 'light' ? '#fff' : '#444', color: theme === 'light' ? '#000' : '#fff' },
         }}
       >
         {selectedAlert && (
           <>
-            <h2>{selectedAlert.name} Details</h2>
-            <p>
+            <Typography variant="h5">{selectedAlert.name} Details</Typography>
+            <Typography variant="body1">
               <strong>CPU Usage:</strong>{' '}
               {selectedAlert.last_updated && isVMOffline(selectedAlert.last_updated) ? '0%' : `${selectedAlert.cpu || 0}%`}
-            </p>
-            <p>
+            </Typography>
+            <Typography variant="body1">
               <strong>Memory Usage:</strong>{' '}
               {selectedAlert.last_updated && isVMOffline(selectedAlert.last_updated) ? '0%' : `${selectedAlert.memory || 0}%`}
-            </p>
-            <p>
+            </Typography>
+            <Typography variant="body1">
               <strong>Disk Usage:</strong>{' '}
               {selectedAlert.last_updated && isVMOffline(selectedAlert.last_updated) ? '0%' : `${selectedAlert.disk || 0}%`}
-            </p>
-            <p>
+            </Typography>
+            <Typography variant="body1">
               <strong>Network Usage:</strong>
-            </p>
+            </Typography>
             {selectedAlert.last_updated && isVMOffline(selectedAlert.last_updated) ? (
-              <p>Offline</p>
+              <Typography variant="body1">Offline</Typography>
             ) : (
-              <div>
-                <p>
+              <Box>
+                <Typography variant="body1">
                   <strong>Bytes Sent:</strong> {selectedAlert.network?.bytes_sent?.toLocaleString() || 0} B
-                </p>
-                <p>
+                </Typography>
+                <Typography variant="body1">
                   <strong>Bytes Received:</strong> {selectedAlert.network?.bytes_recv?.toLocaleString() || 0} B
-                </p>
-              </div>
+                </Typography>
+              </Box>
             )}
-            <button
-              onClick={() => setSelectedAlert(null)}
-              style={{
-                marginTop: '15px',
-                padding: '5px 10px',
-                backgroundColor: '#007bff',
-                color: '#fff',
-                border: 'none',
-                borderRadius: '5px',
-                cursor: 'pointer',
-              }}
-            >
+            <Button variant="contained" onClick={() => setSelectedAlert(null)} sx={{ mt: 2 }}>
               Close
-            </button>
+            </Button>
           </>
         )}
       </ReactModal>
       <ToastContainer />
-    </div>
+    </Box>
   );
 }
 

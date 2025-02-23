@@ -1,15 +1,14 @@
 import React, { useState, useEffect, useContext } from 'react';
+import { Box, Button, Typography, TextField } from '@mui/material';
 import { FaBars } from 'react-icons/fa';
 import Sidebar from './Sidebar';
 import { ThemeContext } from '../ThemeContext';
 
 function Settings() {
-  // Settings state
   const [cpuThreshold, setCpuThreshold] = useState(80);
   const [memoryThreshold, setMemoryThreshold] = useState(80);
   const [emailFrequency, setEmailFrequency] = useState(5);
   const [message, setMessage] = useState('');
-  // For VM stats (used for Sidebar overview)
   const [vmData, setVmData] = useState([]);
   const [sidebarOpen, setSidebarOpen] = useState(true);
   const { theme, toggleTheme } = useContext(ThemeContext);
@@ -18,7 +17,6 @@ function Settings() {
   const cpuThresholdLocal = Number(localStorage.getItem('cpuThreshold')) || 80;
   const memoryThresholdLocal = Number(localStorage.getItem('memoryThreshold')) || 80;
 
-  // Fetch VM data every 5 seconds (for overview in Sidebar)
   useEffect(() => {
     const fetchVmData = async () => {
       try {
@@ -39,11 +37,10 @@ function Settings() {
     return () => clearInterval(interval);
   }, []);
 
-  // Helper functions (same as in Dashboard)
   function isVMOffline(lastUpdated) {
     const now = new Date();
     const lastUpdate = new Date(lastUpdated);
-    const OFFLINE_THRESHOLD = 15000; // 15 seconds
+    const OFFLINE_THRESHOLD = 15000;
     return now - lastUpdate > OFFLINE_THRESHOLD;
   }
 
@@ -65,7 +62,6 @@ function Settings() {
     return !offline && !isCritical(vm, cpuThreshold, memoryThreshold) && !isIdle(vm, idleThreshold);
   }
 
-  // Calculate overview data for the Sidebar.
   const overviewData = {
     totalVMs: vmData.length,
     runningVMs: vmData.filter(
@@ -77,7 +73,6 @@ function Settings() {
     criticalVMs: vmData.filter((vm) => isCritical(vm, cpuThresholdLocal, memoryThresholdLocal)).length,
   };
 
-  // Load saved settings on mount.
   useEffect(() => {
     const storedCpu = localStorage.getItem('cpuThreshold');
     const storedMemory = localStorage.getItem('memoryThreshold');
@@ -99,94 +94,79 @@ function Settings() {
 
   const toggleSidebar = () => setSidebarOpen((prev) => !prev);
 
-  // Main container style for the Settings page (only two columns: Sidebar and main content)
   const containerStyle = {
-    flex: 1,
-    marginLeft: sidebarOpen ? '250px' : '0', // Reserve space for Sidebar if open
+    marginLeft: sidebarOpen ? '250px' : '0',
     padding: '20px',
     backgroundColor: theme === 'light' ? '#f4f4f4' : '#222',
     color: theme === 'light' ? '#000' : '#fff',
     minHeight: '100vh',
     transition: 'margin-left 0.3s ease, background-color 0.3s ease, color 0.3s ease',
+    flex: 1,
   };
 
   return (
-    <div style={{ display: 'flex' }}>
+    <Box sx={{ display: 'flex' }}>
       {sidebarOpen && <Sidebar overviewData={overviewData} onClose={toggleSidebar} />}
-      <div style={containerStyle}>
-        {/* Header with burger menu */}
-        <div style={{ display: 'flex', alignItems: 'center', marginBottom: '20px' }}>
-          <FaBars
-            onClick={toggleSidebar}
-            style={{ fontSize: '24px', cursor: 'pointer', marginRight: '10px' }}
-          />
-          <h2 style={{ margin: 0 }}>Settings</h2>
-        </div>
-        <form onSubmit={handleSubmit}>
-          <div style={{ marginBottom: '15px' }}>
-            <label style={{ marginRight: '10px' }}>CPU Critical Threshold (%):</label>
-            <input
+      <Box sx={containerStyle}>
+        <Box sx={{ display: 'flex', alignItems: 'center', mb: 2 }}>
+          <FaBars onClick={toggleSidebar} style={{ fontSize: '24px', cursor: 'pointer', mr: '10px' }} />
+          <Typography variant="h4">Settings</Typography>
+        </Box>
+        <Box component="form" onSubmit={handleSubmit} sx={{ mb: 2 }}>
+          <Box sx={{ mb: 1 }}>
+            <TextField
+              label="CPU Critical Threshold (%)"
               type="number"
               value={cpuThreshold}
               onChange={(e) => setCpuThreshold(Number(e.target.value))}
               required
-              style={{ padding: '5px' }}
+              size="small"
             />
-          </div>
-          <div style={{ marginBottom: '15px' }}>
-            <label style={{ marginRight: '10px' }}>Memory Critical Threshold (%):</label>
-            <input
+          </Box>
+          <Box sx={{ mb: 1 }}>
+            <TextField
+              label="Memory Critical Threshold (%)"
               type="number"
               value={memoryThreshold}
               onChange={(e) => setMemoryThreshold(Number(e.target.value))}
               required
-              style={{ padding: '5px' }}
+              size="small"
             />
-          </div>
-          <div style={{ marginBottom: '15px' }}>
-            <label style={{ marginRight: '10px' }}>Automatic Email Frequency (minutes):</label>
-            <input
+          </Box>
+          <Box sx={{ mb: 1 }}>
+            <TextField
+              label="Automatic Email Frequency (minutes)"
               type="number"
               value={emailFrequency}
               onChange={(e) => setEmailFrequency(Number(e.target.value))}
               required
-              style={{ padding: '5px' }}
+              size="small"
             />
-          </div>
-          <div style={{ marginBottom: '20px' }}>
-            <label style={{ marginRight: '10px', fontWeight: 'bold' }}>Dark Mode:</label>
-            <button
+          </Box>
+          <Box sx={{ mb: 2 }}>
+            <Typography component="span" sx={{ fontWeight: 'bold', mr: 1 }}>
+              Dark Mode:
+            </Typography>
+            <Button
               type="button"
               onClick={toggleTheme}
-              style={{
-                padding: '10px 15px',
+              variant="contained"
+              sx={{
                 backgroundColor: theme === 'light' ? '#007bff' : '#444',
                 color: '#fff',
-                border: 'none',
                 borderRadius: '5px',
-                cursor: 'pointer',
               }}
             >
               {theme === 'light' ? 'Enable Dark Mode' : 'Disable Dark Mode'}
-            </button>
-          </div>
-          <button
-            type="submit"
-            style={{
-              padding: '8px 12px',
-              cursor: 'pointer',
-              backgroundColor: '#28a745',
-              color: '#fff',
-              border: 'none',
-              borderRadius: '5px',
-            }}
-          >
+            </Button>
+          </Box>
+          <Button type="submit" variant="contained" color="success">
             Save Settings
-          </button>
-        </form>
-        {message && <p style={{ color: 'green', marginTop: '10px' }}>{message}</p>}
-      </div>
-    </div>
+          </Button>
+        </Box>
+        {message && <Typography color="success.main">{message}</Typography>}
+      </Box>
+    </Box>
   );
 }
 

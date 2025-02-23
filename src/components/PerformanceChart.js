@@ -6,6 +6,7 @@ import 'chartjs-adapter-date-fns';
 import Sidebar from './Sidebar';
 import { ThemeContext } from '../ThemeContext';
 import { FaBars } from 'react-icons/fa';
+import { Box, Typography, Button } from '@mui/material';
 
 function PerformanceChart() {
   const { theme } = useContext(ThemeContext);
@@ -38,7 +39,7 @@ function PerformanceChart() {
     fetchVms();
   }, []);
 
-  // Update selectedVmIds when selectedOptions changes.
+  // Update selectedVmIds when selectedOptions change.
   useEffect(() => {
     const ids = selectedOptions.map((option) => option.value);
     setSelectedVmIds(ids);
@@ -47,7 +48,6 @@ function PerformanceChart() {
   // Poll historical data for each selected VM every 5 seconds.
   useEffect(() => {
     if (selectedVmIds.length === 0) return;
-
     const fetchDataForVm = async (id) => {
       try {
         const res = await fetch(`http://localhost:3001/vms/${id}`);
@@ -61,7 +61,7 @@ function PerformanceChart() {
               memory: data.memory, 
               disk: data.disk 
             };
-            // Keep last 100 entries
+            // Keep last 100 entries.
             const updatedHistory = [...prevHistory, newEntry].slice(-100);
             return { ...prev, [id]: updatedHistory };
           });
@@ -73,18 +73,14 @@ function PerformanceChart() {
       }
     };
 
-    selectedVmIds.forEach((id) => {
-      fetchDataForVm(id);
-    });
+    selectedVmIds.forEach((id) => fetchDataForVm(id));
     const interval = setInterval(() => {
-      selectedVmIds.forEach((id) => {
-        fetchDataForVm(id);
-      });
+      selectedVmIds.forEach((id) => fetchDataForVm(id));
     }, 5000);
     return () => clearInterval(interval);
   }, [selectedVmIds]);
 
-  // Aggregate data: Group into desiredPoints by averaging.
+  // Aggregate historical data into a fixed number of points (default 20).
   const aggregateData = (data, desiredPoints = 20) => {
     if (data.length <= desiredPoints) return data;
     const groupSize = Math.floor(data.length / desiredPoints);
@@ -139,7 +135,7 @@ function PerformanceChart() {
     },
   };
 
-  // Download CSV function for aggregated historical data.
+  // Download CSV function.
   const downloadCSV = () => {
     let csvContent = 'data:text/csv;charset=utf-8,';
     csvContent += 'VM Name,Time,CPU,Memory,Disk\n';
@@ -148,7 +144,9 @@ function PerformanceChart() {
       const history = historyData[id] || [];
       const aggregatedHistory = aggregateData(history, 20);
       aggregatedHistory.forEach((entry) => {
-        const row = `${vm ? vm.name : id},${entry.time.toISOString()},${entry.cpu.toFixed(2)},${entry.memory.toFixed(2)},${entry.disk.toFixed(2)}`;
+        const row = `${vm ? vm.name : id},${entry.time.toISOString()},${entry.cpu.toFixed(
+          2
+        )},${entry.memory.toFixed(2)},${entry.disk.toFixed(2)}`;
         csvContent += row + '\n';
       });
     });
@@ -161,7 +159,7 @@ function PerformanceChart() {
     document.body.removeChild(link);
   };
 
-  // Layout: Two-column style (Sidebar and Main Content).
+  // Layout: Two-column layout with a Sidebar and main content.
   const mainContainerStyle = {
     marginLeft: sidebarOpen ? '250px' : '0',
     padding: '20px',
@@ -172,7 +170,6 @@ function PerformanceChart() {
     flex: 1,
   };
 
-  // Chart container style to control chart size.
   const chartContainerStyle = {
     marginBottom: '30px',
     height: '250px', // Adjust height as needed
@@ -180,7 +177,7 @@ function PerformanceChart() {
 
   const toggleSidebar = () => setSidebarOpen((prev) => !prev);
 
-  // Overview data for Sidebar.
+  // Compute overview data for Sidebar.
   const overviewData = {
     totalVMs: vmList.length,
     runningVMs: vmList.filter((vm) => vm.status === 'Running').length,
@@ -188,18 +185,20 @@ function PerformanceChart() {
   };
 
   return (
-    <div style={{ display: 'flex' }}>
+    <Box sx={{ display: 'flex' }}>
       {sidebarOpen && <Sidebar overviewData={overviewData} onClose={toggleSidebar} />}
-      <div style={mainContainerStyle}>
+      <Box sx={mainContainerStyle}>
         {/* Header with burger menu */}
-        <div style={{ display: 'flex', alignItems: 'center', marginBottom: '20px' }}>
-          <FaBars onClick={toggleSidebar} style={{ fontSize: '24px', cursor: 'pointer', marginRight: '10px' }} />
-          <h2 style={{ margin: 0 }}>Performance Charts</h2>
-        </div>
+        <Box sx={{ display: 'flex', alignItems: 'center', mb: 2 }}>
+          <FaBars onClick={toggleSidebar} style={{ fontSize: '24px', cursor: 'pointer', mr: '10px' }} />
+          <Typography variant="h4">Performance Charts</Typography>
+        </Box>
 
         {/* Multi-select dropdown to choose VMs */}
-        <div style={{ marginBottom: '20px', maxWidth: '300px' }}>
-          <label style={{ fontWeight: 'bold', marginRight: '10px' }}>Select VMs:</label>
+        <Box sx={{ mb: 2, maxWidth: '300px' }}>
+          <Typography component="label" sx={{ fontWeight: 'bold', mr: 1 }}>
+            Select VMs:
+          </Typography>
           <Select
             options={vmList.map((vm) => ({ value: vm.id, label: vm.name }))}
             isMulti
@@ -207,41 +206,31 @@ function PerformanceChart() {
             onChange={(selected) => setSelectedOptions(selected)}
             placeholder="Select VMs..."
           />
-        </div>
+        </Box>
 
         {selectedVmIds.length === 0 ? (
-          <p>Please select at least one VM to view performance history.</p>
+          <Typography>Please select at least one VM to view performance history.</Typography>
         ) : (
           <>
-            <div style={chartContainerStyle}>
-              <h3>CPU Usage (%)</h3>
+            <Box sx={chartContainerStyle}>
+              <Typography variant="h6" sx={{ mb: 1 }}>CPU Usage (%)</Typography>
               <Line data={{ datasets: createDatasets('cpu') }} options={chartOptions} />
-            </div>
-            <div style={chartContainerStyle}>
-              <h3>Memory Usage (%)</h3>
+            </Box>
+            <Box sx={chartContainerStyle}>
+              <Typography variant="h6" sx={{ mb: 1 }}>Memory Usage (%)</Typography>
               <Line data={{ datasets: createDatasets('memory') }} options={chartOptions} />
-            </div>
-            <div style={chartContainerStyle}>
-              <h3>Disk Usage (%)</h3>
+            </Box>
+            <Box sx={chartContainerStyle}>
+              <Typography variant="h6" sx={{ mb: 1 }}>Disk Usage (%)</Typography>
               <Line data={{ datasets: createDatasets('disk') }} options={chartOptions} />
-            </div>
-            <button
-              onClick={downloadCSV}
-              style={{
-                padding: '10px 20px',
-                backgroundColor: '#007bff',
-                color: '#fff',
-                border: 'none',
-                borderRadius: '5px',
-                cursor: 'pointer',
-              }}
-            >
+            </Box>
+            <Button variant="contained" onClick={downloadCSV}>
               Download CSV
-            </button>
+            </Button>
           </>
         )}
-      </div>
-    </div>
+      </Box>
+    </Box>
   );
 }
 
