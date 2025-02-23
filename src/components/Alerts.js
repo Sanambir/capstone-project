@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useContext } from 'react';
+import React, { useState, useEffect, useContext, useCallback } from 'react';
 import axios from 'axios';
 import Sidebar from './Sidebar';
 import { ThemeContext } from '../ThemeContext';
@@ -17,7 +17,7 @@ import {
 
 ReactModal.setAppElement('#root');
 
-// Custom ToggleSwitch component using MUI's Box
+// Custom ToggleSwitch component using MUI Box
 function ToggleSwitch({ checked, onChange }) {
   return (
     <Box
@@ -65,14 +65,12 @@ function ToggleSwitch({ checked, onChange }) {
 
 const OFFLINE_THRESHOLD = 15000; // 15 seconds
 
-// Helper: Check if a VM is offline.
 function isVMOffline(lastUpdated) {
   const now = new Date();
   const lastUpdate = new Date(lastUpdated);
   return now - lastUpdate > OFFLINE_THRESHOLD;
 }
 
-// Helper: Determine if a VM is critical.
 function isCritical(vm, cpuThreshold, memoryThreshold) {
   if (!vm.last_updated) return false;
   const offline = isVMOffline(vm.last_updated);
@@ -94,7 +92,6 @@ function Alerts() {
   const rowsPerPage = 5;
   const emailFrequency = Number(localStorage.getItem('emailFrequency')) || 5; // minutes
 
-  // Define thresholds (defaults: 80 for CPU/Memory)
   const cpuThreshold = Number(localStorage.getItem('cpuThreshold')) || 80;
   const memoryThreshold = Number(localStorage.getItem('memoryThreshold')) || 80;
 
@@ -132,13 +129,12 @@ function Alerts() {
     return () => clearInterval(interval);
   }, []);
 
-  // Determine critical alerts: online VMs exceeding CPU or Memory thresholds.
+  // Determine critical alerts.
   const allCriticalVMs = vmData.filter((vm) => {
     const online = vm.last_updated && !isVMOffline(vm.last_updated);
     return online && (vm.cpu > cpuThreshold || vm.memory > memoryThreshold);
   });
 
-  // Apply filter: "All", "CPU", "Memory"
   const filteredCriticalVMs = allCriticalVMs.filter((vm) => {
     if (filter === 'All') return true;
     if (filter === 'CPU') return vm.cpu > cpuThreshold;
@@ -183,26 +179,24 @@ function Alerts() {
     alert('Email saved successfully!');
   };
 
-  const handleAutoEmailToggle = (e) => {
-    const isEnabled = e.target.checked;
-    setAutoEmail(isEnabled);
-    localStorage.setItem('autoEmail', isEnabled);
-  };
-
-  const sendEmailAlert = async (vm) => {
-    try {
-      const response = await axios.post('http://localhost:5000/send-alert', {
-        vmName: vm.name,
-        cpu: vm.cpu,
-        memory: vm.memory,
-        disk: vm.disk,
-        recipientEmail,
-      });
-      console.log(`Email alert sent for ${vm.name}:`, response.data.message);
-    } catch (error) {
-      console.error('Error sending alert email:', error);
-    }
-  };
+  // Wrap sendEmailAlert in useCallback.
+  const sendEmailAlert = useCallback(
+    async (vm) => {
+      try {
+        const response = await axios.post('http://localhost:5000/send-alert', {
+          vmName: vm.name,
+          cpu: vm.cpu,
+          memory: vm.memory,
+          disk: vm.disk,
+          recipientEmail,
+        });
+        console.log(`Email alert sent for ${vm.name}:`, response.data.message);
+      } catch (error) {
+        console.error('Error sending alert email:', error);
+      }
+    },
+    [recipientEmail]
+  );
 
   useEffect(() => {
     if (autoEmail) {
@@ -220,7 +214,7 @@ function Alerts() {
         }
       });
     }
-  }, [autoEmail, unacknowledgedCritical, emailFrequency, recipientEmail]);
+  }, [autoEmail, unacknowledgedCritical, emailFrequency, recipientEmail, autoEmailSent, sendEmailAlert]);
 
   const toggleSidebar = () => setSidebarOpen((prev) => !prev);
 
@@ -235,7 +229,7 @@ function Alerts() {
     criticalVMs: vmData.filter((vm) => isCritical(vm, cpuThreshold, memoryThreshold)).length,
   };
 
-  // Main container style (center column) – reserves left margin for Sidebar and fixed width for User Info panel.
+  // Layout: Three columns – Sidebar (left), main content (center), and User Info panel (right).
   const mainContainerStyle = {
     marginLeft: sidebarOpen ? '250px' : '0',
     marginRight: '300px', // Reserve 300px for User Info panel
@@ -247,7 +241,6 @@ function Alerts() {
     flex: 2,
   };
 
-  // User Info panel style (right column) – fixed width.
   const userInfoStyle = {
     width: '300px',
     padding: '20px',
@@ -258,10 +251,8 @@ function Alerts() {
     flex: 1,
   };
 
-  // Card background colors.
+  // Card background color (for simplicity, we always use the default for alerts here).
   const defaultCardBg = theme === 'light' ? '#fff' : '#333';
-  const offlineCardBg = theme === 'light' ? '#e0e0e0' : '#444';
-  const criticalCardBg = theme === 'light' ? '#ffcccc' : '#a94442';
 
   return (
     <Box sx={{ display: 'flex' }}>
@@ -407,15 +398,21 @@ function Alerts() {
             <Typography variant="h5">{selectedAlert.name} Details</Typography>
             <Typography variant="body1">
               <strong>CPU Usage:</strong>{' '}
-              {selectedAlert.last_updated && isVMOffline(selectedAlert.last_updated) ? '0%' : `${selectedAlert.cpu || 0}%`}
+              {selectedAlert.last_updated && isVMOffline(selectedAlert.last_updated)
+                ? '0%'
+                : `${selectedAlert.cpu || 0}%`}
             </Typography>
             <Typography variant="body1">
               <strong>Memory Usage:</strong>{' '}
-              {selectedAlert.last_updated && isVMOffline(selectedAlert.last_updated) ? '0%' : `${selectedAlert.memory || 0}%`}
+              {selectedAlert.last_updated && isVMOffline(selectedAlert.last_updated)
+                ? '0%'
+                : `${selectedAlert.memory || 0}%`}
             </Typography>
             <Typography variant="body1">
               <strong>Disk Usage:</strong>{' '}
-              {selectedAlert.last_updated && isVMOffline(selectedAlert.last_updated) ? '0%' : `${selectedAlert.disk || 0}%`}
+              {selectedAlert.last_updated && isVMOffline(selectedAlert.last_updated)
+                ? '0%'
+                : `${selectedAlert.disk || 0}%`}
             </Typography>
             <Typography variant="body1">
               <strong>Network Usage:</strong>
