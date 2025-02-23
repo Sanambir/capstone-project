@@ -86,11 +86,11 @@ function Alerts() {
   const rowsPerPage = 5;
   const emailFrequency = Number(localStorage.getItem('emailFrequency')) || 5; // minutes
 
-  // Define thresholds (default values)
+  // Define thresholds (default: 80 for CPU/Memory)
   const cpuThreshold = Number(localStorage.getItem('cpuThreshold')) || 80;
   const memoryThreshold = Number(localStorage.getItem('memoryThreshold')) || 80;
 
-  // On mount, load saved settings from localStorage.
+  // Load saved settings on mount.
   useEffect(() => {
     const storedRecipientEmail = localStorage.getItem('recipientEmail');
     if (storedRecipientEmail) {
@@ -106,7 +106,7 @@ function Alerts() {
     }
   }, []);
 
-  // Persist autoEmailSent to localStorage.
+  // Persist autoEmailSent changes.
   useEffect(() => {
     localStorage.setItem('autoEmailSent', JSON.stringify(autoEmailSent));
   }, [autoEmailSent]);
@@ -131,13 +131,13 @@ function Alerts() {
     return () => clearInterval(interval);
   }, []);
 
-  // For alerts, consider critical VMs (online and CPU or Memory exceed thresholds)
+  // Determine critical alerts: online VMs exceeding thresholds.
   const allCriticalVMs = vmData.filter((vm) => {
     const online = vm.last_updated && !isVMOffline(vm.last_updated);
     return online && (vm.cpu > cpuThreshold || vm.memory > memoryThreshold);
   });
 
-  // Apply filter: "All", "CPU" (critical by CPU), "Memory" (critical by Memory)
+  // Apply filter.
   const filteredCriticalVMs = allCriticalVMs.filter((vm) => {
     if (filter === 'All') return true;
     if (filter === 'CPU') return vm.cpu > cpuThreshold;
@@ -145,11 +145,9 @@ function Alerts() {
     return true;
   });
 
-  // Separate unacknowledged and acknowledged alerts.
   const unacknowledgedCritical = filteredCriticalVMs.filter((vm) => !acknowledgedAlerts[vm.id]);
   const acknowledgedCritical = filteredCriticalVMs.filter((vm) => acknowledgedAlerts[vm.id]);
 
-  // Pagination for unacknowledged alerts.
   const indexOfLastRow = currentPage * rowsPerPage;
   const indexOfFirstRow = indexOfLastRow - rowsPerPage;
   const currentRows = unacknowledgedCritical.slice(indexOfFirstRow, indexOfLastRow);
@@ -161,7 +159,6 @@ function Alerts() {
     }
   };
 
-  // Handlers for acknowledgement.
   const handleAcknowledge = (id) => {
     setAcknowledgedAlerts((prev) => ({ ...prev, [id]: true }));
     setAutoEmailSent((prev) => ({ ...prev, [id]: 0 }));
@@ -175,13 +172,11 @@ function Alerts() {
     });
   };
 
-  // Handle filter change.
   const handleFilterChange = (e) => {
     setFilter(e.target.value);
     setCurrentPage(1);
   };
 
-  // Handlers for recipient email editing.
   const handleRecipientChange = (e) => setRecipientEmail(e.target.value);
   const handleEmailSave = () => {
     localStorage.setItem('recipientEmail', recipientEmail);
@@ -189,14 +184,12 @@ function Alerts() {
     alert('Email saved successfully!');
   };
 
-  // Handle auto email toggle.
   const handleAutoEmailToggle = (e) => {
     const isEnabled = e.target.checked;
     setAutoEmail(isEnabled);
     localStorage.setItem('autoEmail', isEnabled);
   };
 
-  // Function to send an email alert.
   const sendEmailAlert = async (vm) => {
     try {
       const response = await axios.post('http://localhost:5000/send-alert', {
@@ -212,7 +205,6 @@ function Alerts() {
     }
   };
 
-  // Automatic email effect.
   useEffect(() => {
     if (autoEmail) {
       const now = Date.now();
@@ -231,37 +223,46 @@ function Alerts() {
     }
   }, [autoEmail, unacknowledgedCritical, emailFrequency, recipientEmail]);
 
-  // Toggle sidebar visibility.
   const toggleSidebar = () => setSidebarOpen((prev) => !prev);
 
   // Compute overview data for Sidebar.
   const overviewData = {
     totalVMs: vmData.length,
     runningVMs: vmData.filter(
-      (vm) => vm.last_updated && !isVMOffline(vm.last_updated) && (vm.cpu <= cpuThreshold && vm.memory <= memoryThreshold)
+      (vm) =>
+        vm.last_updated &&
+        !isVMOffline(vm.last_updated) &&
+        (vm.cpu <= cpuThreshold && vm.memory <= memoryThreshold)
     ).length,
     criticalVMs: vmData.filter((vm) => isCritical(vm, cpuThreshold, memoryThreshold)).length,
   };
 
-  // Container style based on theme.
+  // Main container style (center column).
   const mainContainerStyle = {
-    flex: 2,
+    marginLeft: sidebarOpen ? '250px' : '0',
+    marginRight: '0px', // Reserve fixed width for user info panel
     padding: '20px',
     backgroundColor: theme === 'light' ? '#f4f4f4' : '#222',
     color: theme === 'light' ? '#000' : '#fff',
     minHeight: '100vh',
-    transition: 'background-color 0.3s ease, color 0.3s ease'
+    transition: 'margin 0.3s ease, background-color 0.3s ease, color 0.3s ease',
+    flex: 1,
   };
 
-  // User info panel style (Right Column).
+  // User info panel style (right column) with fixed width.
   const userInfoStyle = {
-    flex: 1,
+    width: '300px',
     padding: '20px',
     backgroundColor: theme === 'light' ? '#f9f9f9' : '#333',
     borderLeft: '1px solid #ddd',
     minHeight: '100vh',
-    transition: 'background-color 0.3s ease, color 0.3s ease'
+    transition: 'background-color 0.3s ease, color 0.3s ease',
   };
+
+  // Card background colors.
+  const defaultCardBg = theme === 'light' ? '#fff' : '#333';
+  const offlineCardBg = theme === 'light' ? '#e0e0e0' : '#444';
+  const criticalCardBg = theme === 'light' ? '#ffcccc' : '#a94442';
 
   return (
     <div style={{ display: 'flex' }}>
@@ -343,9 +344,7 @@ function Alerts() {
           <button onClick={() => handlePageChange(currentPage - 1)} disabled={currentPage === 1} style={{ padding: '5px 10px', marginRight: '10px' }}>
             Previous
           </button>
-          <span style={{ margin: '0 10px' }}>
-            Page {currentPage} of {totalPages}
-          </span>
+          <span style={{ margin: '0 10px' }}>Page {currentPage} of {totalPages}</span>
           <button onClick={() => handlePageChange(currentPage + 1)} disabled={currentPage === totalPages} style={{ padding: '5px 10px', marginLeft: '10px' }}>
             Next
           </button>
@@ -493,7 +492,7 @@ function Alerts() {
                 color: '#fff',
                 border: 'none',
                 borderRadius: '5px',
-                cursor: 'pointer'
+                cursor: 'pointer',
               }}
             >
               Close

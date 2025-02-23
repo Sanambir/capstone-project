@@ -33,7 +33,7 @@ function ManageVMs() {
     setNewVM({ ...newVM, [e.target.name]: e.target.value });
   };
 
-  // Add a new VM via POST request
+  // Add a new VM
   const addVM = async (e) => {
     e.preventDefault();
     try {
@@ -52,25 +52,25 @@ function ManageVMs() {
         last_updated: new Date().toISOString(),
       });
       setNewVM({ name: '', os: '' });
-      fetchVMs(); // Refresh the list of VMs
+      fetchVMs();
     } catch (err) {
       console.error('Error adding VM:', err);
       setError('Failed to add VM.');
     }
   };
 
-  // Delete a VM via DELETE request
+  // Delete a VM
   const deleteVM = async (id) => {
     try {
       await axios.delete(`http://localhost:3001/vms/${id}`);
-      fetchVMs(); // Refresh the list after deletion
+      fetchVMs();
     } catch (err) {
       console.error('Error deleting VM:', err);
       setError('Failed to delete VM.');
     }
   };
 
-  // Start editing a VM: set editingVM and pre-populate editedData
+  // Start editing a VM
   const startEditing = (vm) => {
     setEditingVM(vm.id);
     setEditedData({ name: vm.name, os: vm.os });
@@ -81,7 +81,7 @@ function ManageVMs() {
     setEditedData({ ...editedData, [e.target.name]: e.target.value });
   };
 
-  // Update the VM via a PUT request
+  // Update the VM
   const updateVM = async (id) => {
     try {
       const vmToUpdate = vms.find((vm) => vm.id === id);
@@ -98,21 +98,15 @@ function ManageVMs() {
     }
   };
 
-  // Toggle sidebar visibility via burger menu.
   const toggleSidebar = () => setSidebarOpen((prev) => !prev);
 
-  // Compute overview data for the Sidebar (VM stats as in Alerts.js code)
-  // Here we assume:
-  // - Total VMs: total count.
-  // - Running VMs: those with a last_updated and with status "Running" (for simplicity).
-  // - Critical VMs: those whose status is not "Running" (or you can adjust logic as needed).
+  // Compute overview data for Sidebar (using stats from Alerts page style)
   const overviewData = {
     totalVMs: vms.length,
     runningVMs: vms.filter((vm) => vm.status === 'Running').length,
     criticalVMs: vms.filter((vm) => vm.status !== 'Running').length,
   };
 
-  // Container style based on theme.
   const containerStyle = {
     flex: 1,
     padding: '20px',
@@ -120,6 +114,7 @@ function ManageVMs() {
     color: theme === 'light' ? '#000' : '#fff',
     minHeight: '100vh',
     transition: 'background-color 0.3s ease, color 0.3s ease',
+    marginLeft: sidebarOpen ? '250px' : '0',
   };
 
   return (
@@ -131,8 +126,6 @@ function ManageVMs() {
           <h2 style={{ margin: 0 }}>Manage Virtual Machines</h2>
         </div>
         {error && <p style={{ color: 'red' }}>{error}</p>}
-
-        {/* Form to add a new VM */}
         <form onSubmit={addVM} style={{ marginBottom: '20px' }}>
           <div style={{ marginBottom: '10px' }}>
             <label style={{ marginRight: '10px' }}>VM Name:</label>
@@ -160,8 +153,6 @@ function ManageVMs() {
             Add VM
           </button>
         </form>
-
-        {/* List of existing VMs */}
         <h3>Existing VMs</h3>
         {vms.length > 0 ? (
           <ul style={{ listStyle: 'none', padding: 0 }}>
@@ -210,9 +201,7 @@ function ManageVMs() {
                   </div>
                 ) : (
                   <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', width: '100%' }}>
-                    <span>
-                      {vm.name} ({vm.os})
-                    </span>
+                    <span>{vm.name} ({vm.os})</span>
                     <div>
                       <button
                         onClick={() => startEditing(vm)}
