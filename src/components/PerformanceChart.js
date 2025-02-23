@@ -12,7 +12,7 @@ function PerformanceChart() {
   const [vmList, setVmList] = useState([]);
   const [selectedOptions, setSelectedOptions] = useState([]);
   const [selectedVmIds, setSelectedVmIds] = useState([]);
-  const [historyData, setHistoryData] = useState({}); // { vmId: [ { time, cpu, memory, disk }, ... ] }
+  const [historyData, setHistoryData] = useState({}); // { vmId: [{ time, cpu, memory, disk }, ...] }
   const [sidebarOpen, setSidebarOpen] = useState(true);
 
   // Fetch VMs on mount.
@@ -125,7 +125,6 @@ function PerformanceChart() {
       };
     });
 
-  // Chart options.
   const chartOptions = {
     scales: {
       x: {
@@ -140,7 +139,7 @@ function PerformanceChart() {
     },
   };
 
-  // Download CSV function for historical data.
+  // Download CSV function for aggregated historical data.
   const downloadCSV = () => {
     let csvContent = 'data:text/csv;charset=utf-8,';
     csvContent += 'VM Name,Time,CPU,Memory,Disk\n';
@@ -149,9 +148,7 @@ function PerformanceChart() {
       const history = historyData[id] || [];
       const aggregatedHistory = aggregateData(history, 20);
       aggregatedHistory.forEach((entry) => {
-        const row = `${vm ? vm.name : id},${entry.time.toISOString()},${entry.cpu.toFixed(
-          2
-        )},${entry.memory.toFixed(2)},${entry.disk.toFixed(2)}`;
+        const row = `${vm ? vm.name : id},${entry.time.toISOString()},${entry.cpu.toFixed(2)},${entry.memory.toFixed(2)},${entry.disk.toFixed(2)}`;
         csvContent += row + '\n';
       });
     });
@@ -164,29 +161,39 @@ function PerformanceChart() {
     document.body.removeChild(link);
   };
 
-  // Container style.
-  const containerStyle = {
-    flex: 1,
+  // Layout: Two-column style (Sidebar and Main Content).
+  const mainContainerStyle = {
+    marginLeft: sidebarOpen ? '250px' : '0',
     padding: '20px',
     backgroundColor: theme === 'light' ? '#f4f4f4' : '#222',
     color: theme === 'light' ? '#000' : '#fff',
     minHeight: '100vh',
-    transition: 'background-color 0.3s ease, color 0.3s ease'
+    transition: 'margin-left 0.3s ease, background-color 0.3s ease, color 0.3s ease',
+    flex: 1,
   };
 
   // Chart container style to control chart size.
   const chartContainerStyle = {
     marginBottom: '30px',
-    height: '300px', // Adjust height as needed
+    height: '250px', // Adjust height as needed
+  };
+
+  const toggleSidebar = () => setSidebarOpen((prev) => !prev);
+
+  // Overview data for Sidebar.
+  const overviewData = {
+    totalVMs: vmList.length,
+    runningVMs: vmList.filter((vm) => vm.status === 'Running').length,
+    criticalVMs: vmList.filter((vm) => vm.status !== 'Running').length,
   };
 
   return (
     <div style={{ display: 'flex' }}>
-      <Sidebar />
-      <div style={containerStyle}>
+      {sidebarOpen && <Sidebar overviewData={overviewData} onClose={toggleSidebar} />}
+      <div style={mainContainerStyle}>
         {/* Header with burger menu */}
         <div style={{ display: 'flex', alignItems: 'center', marginBottom: '20px' }}>
-          <FaBars style={{ fontSize: '24px', cursor: 'pointer', marginRight: '10px' }} />
+          <FaBars onClick={toggleSidebar} style={{ fontSize: '24px', cursor: 'pointer', marginRight: '10px' }} />
           <h2 style={{ margin: 0 }}>Performance Charts</h2>
         </div>
 
