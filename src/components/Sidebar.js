@@ -15,7 +15,9 @@ function Sidebar({ overviewData, onClose }) {
         backgroundColor: backgroundColor,
         color: '#fff',
         height: '100vh',
+        overflowY: 'auto',
         padding: '20px',
+        boxSizing: 'border-box', // Ensures padding is included in the height
         transition: 'all 0.3s ease'
       }}
     >
@@ -79,6 +81,20 @@ function Sidebar({ overviewData, onClose }) {
             }}
           >
             Manage VMs
+          </Link>
+        </li>
+        <li style={{ marginBottom: '15px' }}>
+          <Link
+            to="/performance"
+            style={{
+              color: '#fff',
+              textDecoration: 'none',
+              padding: '10px',
+              display: 'block',
+              borderRadius: '5px'
+            }}
+          >
+            Performance
           </Link>
         </li>
         <li style={{ marginBottom: '15px' }}>

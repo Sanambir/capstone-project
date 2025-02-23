@@ -17,7 +17,7 @@ function App() {
           <Route path="/dashboard" element={<Dashboard />} />
           <Route path="/alerts" element={<Alerts />} />
           <Route path="/manage" element={<ManageVMs />} />
-          <Route path="/performance/:vmId" element={<PerformanceChart />} />
+          <Route path="/performance" element={<PerformanceChart />} />
           <Route path="/settings" element={<Settings />} />
         </Routes>
       </Router>

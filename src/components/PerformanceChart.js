@@ -1,43 +1,21 @@
-import React, { useEffect, useState } from 'react';
-import Sidebar from './Sidebar';
+import React, { useState, useEffect, useContext } from 'react';
 import Select from 'react-select';
 import { Line } from 'react-chartjs-2';
 import 'chart.js/auto';
 import 'chartjs-adapter-date-fns';
-import ReactModal from 'react-modal';
-
-ReactModal.setAppElement('#root');
-
-// Helper function: Aggregate data into a desired number of points by averaging.
-function aggregateData(data, desiredPoints = 20) {
-  if (data.length <= desiredPoints) return data;
-  const groupSize = Math.floor(data.length / desiredPoints);
-  const aggregated = [];
-  for (let i = 0; i < data.length; i += groupSize) {
-    const group = data.slice(i, i + groupSize);
-    const avgTime =
-      new Date(
-        group.reduce((acc, cur) => acc + cur.time.getTime(), 0) / group.length
-      );
-    const avgCpu = group.reduce((acc, cur) => acc + cur.cpu, 0) / group.length;
-    const avgMemory =
-      group.reduce((acc, cur) => acc + cur.memory, 0) / group.length;
-    const avgDisk = group.reduce((acc, cur) => acc + cur.disk, 0) / group.length;
-    aggregated.push({ time: avgTime, cpu: avgCpu, memory: avgMemory, disk: avgDisk });
-  }
-  return aggregated;
-}
+import Sidebar from './Sidebar';
+import { ThemeContext } from '../ThemeContext';
+import { FaBars } from 'react-icons/fa';
 
 function PerformanceChart() {
-  // State for list of VMs and selected VM IDs
+  const { theme } = useContext(ThemeContext);
   const [vmList, setVmList] = useState([]);
   const [selectedOptions, setSelectedOptions] = useState([]);
-  // selectedVmIds will be derived from selectedOptions
   const [selectedVmIds, setSelectedVmIds] = useState([]);
-  // historyData: object mapping vmId -> array of { time, cpu, memory, disk }
-  const [historyData, setHistoryData] = useState({});
+  const [historyData, setHistoryData] = useState({}); // { vmId: [ { time, cpu, memory, disk }, ... ] }
+  const [sidebarOpen, setSidebarOpen] = useState(true);
 
-  // Fetch the list of VMs on mount
+  // Fetch VMs on mount.
   useEffect(() => {
     const fetchVms = async () => {
       try {
@@ -45,29 +23,28 @@ function PerformanceChart() {
         if (res.ok) {
           const data = await res.json();
           setVmList(data);
-          // Set default if none selected
-          if (data.length > 0 && selectedVmIds.length === 0) {
+          if (data.length > 0 && selectedOptions.length === 0) {
             const defaultOption = { value: data[0].id, label: data[0].name };
             setSelectedOptions([defaultOption]);
             setSelectedVmIds([data[0].id]);
           }
         } else {
-          console.error('Failed to fetch VMs for Performance Chart');
+          console.error('Failed to fetch VMs');
         }
-      } catch (err) {
-        console.error('Error fetching VM list:', err);
+      } catch (error) {
+        console.error('Error fetching VMs:', error);
       }
     };
     fetchVms();
   }, []);
 
-  // When selectedOptions change, update selectedVmIds.
+  // Update selectedVmIds when selectedOptions changes.
   useEffect(() => {
-    const ids = selectedOptions.map(option => option.value);
+    const ids = selectedOptions.map((option) => option.value);
     setSelectedVmIds(ids);
   }, [selectedOptions]);
 
-  // Poll the selected VM(s)' data every 5 seconds.
+  // Poll historical data for each selected VM every 5 seconds.
   useEffect(() => {
     if (selectedVmIds.length === 0) return;
 
@@ -77,7 +54,6 @@ function PerformanceChart() {
         if (res.ok) {
           const data = await res.json();
           setHistoryData((prev) => {
-            // Instead of slicing to last 20 entries immediately, store up to 100 data points.
             const prevHistory = prev[id] || [];
             const newEntry = { 
               time: new Date(data.last_updated), 
@@ -85,19 +61,18 @@ function PerformanceChart() {
               memory: data.memory, 
               disk: data.disk 
             };
+            // Keep last 100 entries
             const updatedHistory = [...prevHistory, newEntry].slice(-100);
             return { ...prev, [id]: updatedHistory };
           });
         } else {
           console.error(`Failed to fetch data for VM ${id}`);
         }
-      } catch (err) {
-        console.error(`Error fetching data for VM ${id}:`, err);
+      } catch (error) {
+        console.error(`Error fetching data for VM ${id}:`, error);
       }
     };
 
-    // Reset history when selection changes.
-    setHistoryData({});
     selectedVmIds.forEach((id) => {
       fetchDataForVm(id);
     });
@@ -109,12 +84,38 @@ function PerformanceChart() {
     return () => clearInterval(interval);
   }, [selectedVmIds]);
 
-  // Create datasets for a given metric using aggregated data.
+  // Aggregate data: Group into desiredPoints by averaging.
+  const aggregateData = (data, desiredPoints = 20) => {
+    if (data.length <= desiredPoints) return data;
+    const groupSize = Math.floor(data.length / desiredPoints);
+    const aggregated = [];
+    for (let i = 0; i < data.length; i += groupSize) {
+      const group = data.slice(i, i + groupSize);
+      const avgTime = new Date(
+        group.reduce((acc, cur) => acc + cur.time.getTime(), 0) / group.length
+      );
+      const avgCpu = group.reduce((acc, cur) => acc + cur.cpu, 0) / group.length;
+      const avgMemory = group.reduce((acc, cur) => acc + cur.memory, 0) / group.length;
+      const avgDisk = group.reduce((acc, cur) => acc + cur.disk, 0) / group.length;
+      aggregated.push({ time: avgTime, cpu: avgCpu, memory: avgMemory, disk: avgDisk });
+    }
+    return aggregated;
+  };
+
+  // Create datasets for a given metric.
   const createDatasets = (metric) =>
     selectedVmIds.map((id, index) => {
       const vm = vmList.find((vm) => vm.id === id);
       const history = historyData[id] || [];
       const aggregatedHistory = aggregateData(history, 20);
+      const colors = [
+        'rgba(75,192,192,1)',
+        'rgba(255,99,132,1)',
+        'rgba(54,162,235,1)',
+        'rgba(255,206,86,1)',
+        'rgba(153,102,255,1)',
+        'rgba(255,159,64,1)',
+      ];
       return {
         label: vm ? vm.name : id,
         data: aggregatedHistory.map((entry) => ({ x: entry.time, y: entry[metric] })),
@@ -124,17 +125,7 @@ function PerformanceChart() {
       };
     });
 
-  // Colors for datasets.
-  const colors = [
-    'rgba(75,192,192,1)',
-    'rgba(255,99,132,1)',
-    'rgba(54,162,235,1)',
-    'rgba(255,206,86,1)',
-    'rgba(153,102,255,1)',
-    'rgba(255,159,64,1)',
-  ];
-
-  // Chart options: time scale on x-axis.
+  // Chart options.
   const chartOptions = {
     scales: {
       x: {
@@ -149,16 +140,19 @@ function PerformanceChart() {
     },
   };
 
-  // Function to download historical data as CSV.
+  // Download CSV function for historical data.
   const downloadCSV = () => {
     let csvContent = 'data:text/csv;charset=utf-8,';
-    csvContent += 'VM Name,Time,CPU,Memory,Disk\r\n';
+    csvContent += 'VM Name,Time,CPU,Memory,Disk\n';
     selectedVmIds.forEach((id) => {
       const vm = vmList.find((vm) => vm.id === id);
       const history = historyData[id] || [];
-      history.forEach((entry) => {
-        const row = `${vm ? vm.name : id},${entry.time.toISOString()},${entry.cpu},${entry.memory},${entry.disk}`;
-        csvContent += row + '\r\n';
+      const aggregatedHistory = aggregateData(history, 20);
+      aggregatedHistory.forEach((entry) => {
+        const row = `${vm ? vm.name : id},${entry.time.toISOString()},${entry.cpu.toFixed(
+          2
+        )},${entry.memory.toFixed(2)},${entry.disk.toFixed(2)}`;
+        csvContent += row + '\n';
       });
     });
     const encodedUri = encodeURI(csvContent);
@@ -170,76 +164,72 @@ function PerformanceChart() {
     document.body.removeChild(link);
   };
 
-  // Styling objects
+  // Container style.
   const containerStyle = {
-    maxWidth: '1200px',
-    margin: '0 auto',
+    flex: 1,
     padding: '20px',
+    backgroundColor: theme === 'light' ? '#f4f4f4' : '#222',
+    color: theme === 'light' ? '#000' : '#fff',
+    minHeight: '100vh',
+    transition: 'background-color 0.3s ease, color 0.3s ease'
   };
 
-  const chartCardStyle = {
-    backgroundColor: '#fff',
-    border: '1px solid #ddd',
-    borderRadius: '8px',
-    boxShadow: '0 2px 4px rgba(0,0,0,0.1)',
-    padding: '20px',
-    marginBottom: '20px',
-  };
-
-  const downloadButtonStyle = {
-    padding: '10px 20px',
-    backgroundColor: '#007bff',
-    color: '#fff',
-    border: 'none',
-    borderRadius: '5px',
-    cursor: 'pointer',
+  // Chart container style to control chart size.
+  const chartContainerStyle = {
+    marginBottom: '30px',
+    height: '300px', // Adjust height as needed
   };
 
   return (
     <div style={{ display: 'flex' }}>
       <Sidebar />
       <div style={containerStyle}>
-        <h2>Performance Charts</h2>
-        <div style={{ marginBottom: '20px' }}>
-          <label style={{ fontWeight: 'bold', marginRight: '10px' }}>Select VM(s):</label>
+        {/* Header with burger menu */}
+        <div style={{ display: 'flex', alignItems: 'center', marginBottom: '20px' }}>
+          <FaBars style={{ fontSize: '24px', cursor: 'pointer', marginRight: '10px' }} />
+          <h2 style={{ margin: 0 }}>Performance Charts</h2>
+        </div>
+
+        {/* Multi-select dropdown to choose VMs */}
+        <div style={{ marginBottom: '20px', maxWidth: '300px' }}>
+          <label style={{ fontWeight: 'bold', marginRight: '10px' }}>Select VMs:</label>
           <Select
-            options={vmList.map(vm => ({ value: vm.id, label: vm.name }))}
+            options={vmList.map((vm) => ({ value: vm.id, label: vm.name }))}
             isMulti
             value={selectedOptions}
-            onChange={setSelectedOptions}
+            onChange={(selected) => setSelectedOptions(selected)}
             placeholder="Select VMs..."
           />
         </div>
+
         {selectedVmIds.length === 0 ? (
           <p>Please select at least one VM to view performance history.</p>
         ) : (
           <>
-            <div style={chartCardStyle}>
+            <div style={chartContainerStyle}>
               <h3>CPU Usage (%)</h3>
-              {selectedVmIds.some((id) => (historyData[id] || []).length >= 3) ? (
-                <Line data={{ datasets: createDatasets('cpu') }} options={chartOptions} />
-              ) : (
-                <p>Data currently not available. Please come back later.</p>
-              )}
+              <Line data={{ datasets: createDatasets('cpu') }} options={chartOptions} />
             </div>
-            <div style={chartCardStyle}>
+            <div style={chartContainerStyle}>
               <h3>Memory Usage (%)</h3>
-              {selectedVmIds.some((id) => (historyData[id] || []).length >= 3) ? (
-                <Line data={{ datasets: createDatasets('memory') }} options={chartOptions} />
-              ) : (
-                <p>Data currently not available. Please come back later.</p>
-              )}
+              <Line data={{ datasets: createDatasets('memory') }} options={chartOptions} />
             </div>
-            <div style={chartCardStyle}>
+            <div style={chartContainerStyle}>
               <h3>Disk Usage (%)</h3>
-              {selectedVmIds.some((id) => (historyData[id] || []).length >= 3) ? (
-                <Line data={{ datasets: createDatasets('disk') }} options={chartOptions} />
-              ) : (
-                <p>Data currently not available. Please come back later.</p>
-              )}
+              <Line data={{ datasets: createDatasets('disk') }} options={chartOptions} />
             </div>
-            <button style={downloadButtonStyle} onClick={downloadCSV}>
-              Download Data as CSV
+            <button
+              onClick={downloadCSV}
+              style={{
+                padding: '10px 20px',
+                backgroundColor: '#007bff',
+                color: '#fff',
+                border: 'none',
+                borderRadius: '5px',
+                cursor: 'pointer',
+              }}
+            >
+              Download CSV
             </button>
           </>
         )}
