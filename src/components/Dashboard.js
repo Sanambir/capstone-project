@@ -6,12 +6,13 @@ import DashboardOverview from './DashboardOverview';
 import ReactModal from 'react-modal';
 import { ToastContainer, toast } from 'react-toastify';
 import { ThemeContext } from '../ThemeContext';
+import { CircularProgressbar, buildStyles } from 'react-circular-progressbar';
 import 'react-toastify/dist/ReactToastify.css';
 import 'react-circular-progressbar/dist/styles.css';
 
 ReactModal.setAppElement('#root');
 
-const OFFLINE_THRESHOLD = 15000;
+const OFFLINE_THRESHOLD = 15000; // 15 seconds
 
 function isVMOffline(lastUpdated) {
   const now = new Date();
@@ -50,6 +51,7 @@ function Dashboard() {
   const memoryThreshold = Number(localStorage.getItem('memoryThreshold')) || 80;
   const idleThreshold = 20;
 
+  // Fetch VM data every 5 seconds
   useEffect(() => {
     const fetchData = async () => {
       try {
@@ -69,6 +71,7 @@ function Dashboard() {
     return () => clearInterval(interval);
   }, []);
 
+  // Update selected VM if its data changes.
   useEffect(() => {
     if (selectedVM) {
       const updatedVM = vmData.find((vm) => vm.id === selectedVM.id);
@@ -108,8 +111,7 @@ function Dashboard() {
   const openModal = (vm) => setSelectedVM(vm);
   const closeModal = () => setSelectedVM(null);
 
-  const selectedOffline = selectedVM && selectedVM.last_updated ? isVMOffline(selectedVM.last_updated) : false;
-
+  // Trigger toast for critical VMs
   useEffect(() => {
     filteredData.forEach((vm) => {
       const offline = !vm.last_updated || isVMOffline(vm.last_updated);
@@ -124,7 +126,9 @@ function Dashboard() {
 
   const overviewData = {
     totalVMs: vmData.length,
-    runningVMs: vmData.filter((vm) => vm.last_updated && !isVMOffline(vm.last_updated) && isRunning(vm, cpuThreshold, memoryThreshold, idleThreshold)).length,
+    runningVMs: vmData.filter(
+      (vm) => vm.last_updated && !isVMOffline(vm.last_updated) && isRunning(vm, cpuThreshold, memoryThreshold, idleThreshold)
+    ).length,
     criticalVMs: vmData.filter((vm) => isCritical(vm, cpuThreshold, memoryThreshold)).length,
   };
 
@@ -140,7 +144,7 @@ function Dashboard() {
 
   const toggleSidebar = () => setSidebarOpen((prev) => !prev);
 
-  // Card background colors.
+  // Card background colors
   const defaultCardBg = theme === 'light' ? '#fff' : '#333';
   const offlineCardBg = theme === 'light' ? '#e0e0e0' : '#444';
   const criticalCardBg = theme === 'light' ? '#ffcccc' : '#a94442';
@@ -175,6 +179,12 @@ function Dashboard() {
           let bgColor = defaultCardBg;
           if (offline) bgColor = offlineCardBg;
           else if (isCritical(vm, cpuThreshold, memoryThreshold)) bgColor = criticalCardBg;
+
+          // If offline, we want to show "Offline" instead of numerical values.
+          const cpuValue = offline ? 0 : vm.cpu || 0;
+          const memValue = offline ? 0 : vm.memory || 0;
+          const diskValue = offline ? 0 : vm.disk || 0;
+
           return (
             <Box
               key={vm.id}
@@ -190,6 +200,56 @@ function Dashboard() {
               }}
             >
               <Typography variant="h6">{vm.name}</Typography>
+              <Box sx={{ display: 'flex', justifyContent: 'space-around', mt: 2 }}>
+                <Box sx={{ width: '80px', textAlign: 'center' }}>
+                  <Typography variant="body2">CPU</Typography>
+                  {offline ? (
+                    <Typography variant="caption">Offline</Typography>
+                  ) : (
+                    <CircularProgressbar
+                      value={cpuValue}
+                      text={`${cpuValue}%`}
+                      styles={buildStyles({
+                        pathColor: `rgba(255, 0, 0, ${cpuValue / 100})`,
+                        textColor: theme === 'light' ? '#000' : '#fff',
+                        trailColor: '#d6d6d6',
+                      })}
+                    />
+                  )}
+                </Box>
+                <Box sx={{ width: '80px', textAlign: 'center' }}>
+                  <Typography variant="body2">Memory</Typography>
+                  {offline ? (
+                    <Typography variant="caption">Offline</Typography>
+                  ) : (
+                    <CircularProgressbar
+                      value={memValue}
+                      text={`${memValue}%`}
+                      styles={buildStyles({
+                        pathColor: `rgba(0, 0, 255, ${memValue / 100})`,
+                        textColor: theme === 'light' ? '#000' : '#fff',
+                        trailColor: '#d6d6d6',
+                      })}
+                    />
+                  )}
+                </Box>
+                <Box sx={{ width: '80px', textAlign: 'center' }}>
+                  <Typography variant="body2">Disk</Typography>
+                  {offline ? (
+                    <Typography variant="caption">Offline</Typography>
+                  ) : (
+                    <CircularProgressbar
+                      value={diskValue}
+                      text={`${diskValue}%`}
+                      styles={buildStyles({
+                        pathColor: `rgba(0, 255, 0, ${diskValue / 100})`,
+                        textColor: theme === 'light' ? '#000' : '#fff',
+                        trailColor: '#d6d6d6',
+                      })}
+                    />
+                  )}
+                </Box>
+              </Box>
             </Box>
           );
         })}
@@ -218,15 +278,21 @@ function Dashboard() {
               <Typography variant="h5">{selectedVM.name} Details</Typography>
               <Typography variant="body1">
                 <strong>CPU Usage:</strong>{' '}
-                {selectedVM.last_updated && isVMOffline(selectedVM.last_updated) ? '0%' : `${selectedVM.cpu || 0}%`}
+                {selectedVM.last_updated && isVMOffline(selectedVM.last_updated)
+                  ? 'Offline'
+                  : `${selectedVM.cpu || 0}%`}
               </Typography>
               <Typography variant="body1">
                 <strong>Memory Usage:</strong>{' '}
-                {selectedVM.last_updated && isVMOffline(selectedVM.last_updated) ? '0%' : `${selectedVM.memory || 0}%`}
+                {selectedVM.last_updated && isVMOffline(selectedVM.last_updated)
+                  ? 'Offline'
+                  : `${selectedVM.memory || 0}%`}
               </Typography>
               <Typography variant="body1">
                 <strong>Disk Usage:</strong>{' '}
-                {selectedVM.last_updated && isVMOffline(selectedVM.last_updated) ? '0%' : `${selectedVM.disk || 0}%`}
+                {selectedVM.last_updated && isVMOffline(selectedVM.last_updated)
+                  ? 'Offline'
+                  : `${selectedVM.disk || 0}%`}
               </Typography>
               <Typography variant="body1">
                 <strong>Network Usage:</strong>

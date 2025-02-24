@@ -232,7 +232,7 @@ function Alerts() {
   // Layout: Three columns – Sidebar (left), main content (center), and User Info panel (right).
   const mainContainerStyle = {
     marginLeft: sidebarOpen ? '250px' : '0',
-    marginRight: '300px', // Reserve 300px for User Info panel
+    marginRight: '0px', // Reserve 300px for User Info panel
     padding: '20px',
     backgroundColor: theme === 'light' ? '#f4f4f4' : '#222',
     color: theme === 'light' ? '#000' : '#fff',
@@ -253,8 +253,13 @@ function Alerts() {
 
   // Card background color (for simplicity, we always use the default for alerts here).
   const defaultCardBg = theme === 'light' ? '#fff' : '#333';
-  const offlineCardBg = theme === 'light' ? '#e0e0e0' : '#444';
-  const criticalCardBg = theme === 'light' ? '#ffcccc' : '#a94442';
+
+  const handleAutoEmailToggle = (e) => {
+    const isEnabled = e.target.checked;
+    setAutoEmail(isEnabled);
+    localStorage.setItem('autoEmail', isEnabled);
+  };
+  
 
   return (
     <Box sx={{ display: 'flex' }}>

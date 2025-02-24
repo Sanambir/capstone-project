@@ -26,6 +26,8 @@ const writeDB = (data) => {
   fs.writeFileSync(DB_PATH, JSON.stringify(data, null, 2));
 };
 
+// API Endpoints
+
 // GET all VMs
 app.get('/vms', (req, res) => {
   const db = readDB();
@@ -47,7 +49,6 @@ app.get('/vms/:id', (req, res) => {
 app.post('/vms', (req, res) => {
   const db = readDB();
   const newVM = req.body;
-  // For production, you might want to add server-side validation here.
   db.vms.push(newVM);
   writeDB(db);
   res.status(201).json(newVM);
@@ -73,6 +74,15 @@ app.delete('/vms/:id', (req, res) => {
   db.vms = newVms;
   writeDB(db);
   res.status(204).end();
+});
+
+// Serve static files from the React app's build folder
+app.use(express.static(path.join(__dirname, 'build')));
+
+// The "catchall" handler: for any request that doesn't match one above, send back index.html.
+// This allows React Router to handle client-side routing.
+app.get('*', (req, res) => {
+  res.sendFile(path.join(__dirname, 'build', 'index.html'));
 });
 
 app.listen(PORT, () => {
