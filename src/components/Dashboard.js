@@ -55,7 +55,7 @@ function Dashboard() {
   useEffect(() => {
     const fetchData = async () => {
       try {
-        const response = await fetch('http://localhost:3001/vms');
+        const response = await fetch('https://capstone-ctfhh0dvb6ehaxaw.canadacentral-01.azurewebsites.net/vms');
         if (response.ok) {
           const data = await response.json();
           setVmData(data);
