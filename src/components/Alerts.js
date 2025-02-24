@@ -253,6 +253,8 @@ function Alerts() {
 
   // Card background color (for simplicity, we always use the default for alerts here).
   const defaultCardBg = theme === 'light' ? '#fff' : '#333';
+  const offlineCardBg = theme === 'light' ? '#e0e0e0' : '#444';
+  const criticalCardBg = theme === 'light' ? '#ffcccc' : '#a94442';
 
   return (
     <Box sx={{ display: 'flex' }}>
