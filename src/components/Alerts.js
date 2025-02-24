@@ -434,7 +434,7 @@ function Alerts() {
                 <Typography variant="body1">
                   <strong>Bytes Received:</strong> {selectedAlert.network?.bytes_recv?.toLocaleString() || 0} B
                 </Typography>
-              </Box>
+              </Box>  
             )}
             <Button variant="contained" onClick={() => setSelectedAlert(null)} sx={{ mt: 2 }}>
               Close
