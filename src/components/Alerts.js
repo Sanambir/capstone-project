@@ -6,62 +6,9 @@ import { FaBars } from 'react-icons/fa';
 import ReactModal from 'react-modal';
 import { ToastContainer, toast } from 'react-toastify';
 import 'react-toastify/dist/ReactToastify.css';
-import {
-  Box,
-  Typography,
-  Button,
-  TextField,
-  MenuItem,
-  Select as MuiSelect
-} from '@mui/material';
+import { Box, Typography, Button, TextField, Switch } from '@mui/material';
 
 ReactModal.setAppElement('#root');
-
-// Custom ToggleSwitch component using MUI Box
-function ToggleSwitch({ checked, onChange }) {
-  return (
-    <Box
-      sx={{
-        position: 'relative',
-        display: 'inline-block',
-        width: '50px',
-        height: '24px',
-      }}
-    >
-      <input
-        type="checkbox"
-        checked={checked}
-        onChange={onChange}
-        style={{ opacity: 0, width: 0, height: 0 }}
-      />
-      <Box
-        sx={{
-          position: 'absolute',
-          cursor: 'pointer',
-          top: 0,
-          left: 0,
-          right: 0,
-          bottom: 0,
-          backgroundColor: checked ? '#28a745' : '#ccc',
-          transition: '.4s',
-          borderRadius: '24px',
-        }}
-      />
-      <Box
-        sx={{
-          position: 'absolute',
-          height: '18px',
-          width: '18px',
-          left: checked ? '26px' : '4px',
-          bottom: '3px',
-          backgroundColor: 'white',
-          transition: '.4s',
-          borderRadius: '50%',
-        }}
-      />
-    </Box>
-  );
-}
 
 const OFFLINE_THRESHOLD = 15000; // 15 seconds
 
@@ -84,7 +31,6 @@ function Alerts() {
   const [autoEmail, setAutoEmail] = useState(false);
   const [autoEmailSent, setAutoEmailSent] = useState({});
   const [recipientEmail, setRecipientEmail] = useState('');
-  const [filter, setFilter] = useState('All');
   const [currentPage, setCurrentPage] = useState(1);
   const [editingEmail, setEditingEmail] = useState(false);
   const [sidebarOpen, setSidebarOpen] = useState(true);
@@ -94,6 +40,9 @@ function Alerts() {
 
   const cpuThreshold = Number(localStorage.getItem('cpuThreshold')) || 80;
   const memoryThreshold = Number(localStorage.getItem('memoryThreshold')) || 80;
+
+  // Define default card background.
+  const defaultCardBg = theme === 'light' ? '#fff' : '#333';
 
   // Load saved settings on mount.
   useEffect(() => {
@@ -113,7 +62,9 @@ function Alerts() {
   useEffect(() => {
     const fetchData = async () => {
       try {
-        const response = await fetch('https://capstone-ctfhh0dvb6ehaxaw.canadacentral-01.azurewebsites.net/vms');
+        const response = await fetch(
+          'https://capstone-ctfhh0dvb6ehaxaw.canadacentral-01.azurewebsites.net/vms'
+        );
         if (response.ok) {
           const data = await response.json();
           setVmData(data);
@@ -135,15 +86,8 @@ function Alerts() {
     return online && (vm.cpu > cpuThreshold || vm.memory > memoryThreshold);
   });
 
-  const filteredCriticalVMs = allCriticalVMs.filter((vm) => {
-    if (filter === 'All') return true;
-    if (filter === 'CPU') return vm.cpu > cpuThreshold;
-    if (filter === 'Memory') return vm.memory > memoryThreshold;
-    return true;
-  });
-
-  const unacknowledgedCritical = filteredCriticalVMs.filter((vm) => !acknowledgedAlerts[vm.id]);
-  const acknowledgedCritical = filteredCriticalVMs.filter((vm) => acknowledgedAlerts[vm.id]);
+  const unacknowledgedCritical = allCriticalVMs.filter((vm) => !acknowledgedAlerts[vm.id]);
+  const acknowledgedCritical = allCriticalVMs.filter((vm) => acknowledgedAlerts[vm.id]);
 
   const indexOfLastRow = currentPage * rowsPerPage;
   const indexOfFirstRow = indexOfLastRow - rowsPerPage;
@@ -154,6 +98,7 @@ function Alerts() {
     if (newPage > 0 && newPage <= totalPages) setCurrentPage(newPage);
   };
 
+  // Handler functions.
   const handleAcknowledge = (id) => {
     setAcknowledgedAlerts((prev) => ({ ...prev, [id]: true }));
     setAutoEmailSent((prev) => ({ ...prev, [id]: 0 }));
@@ -167,21 +112,24 @@ function Alerts() {
     });
   };
 
-  const handleFilterChange = (e) => {
-    setFilter(e.target.value);
-    setCurrentPage(1);
-  };
-
   const handleRecipientChange = (e) => setRecipientEmail(e.target.value);
+
   const handleEmailSave = () => {
     localStorage.setItem('recipientEmail', recipientEmail);
     setEditingEmail(false);
     alert('Email saved successfully!');
   };
 
+  const handleAutoEmailToggle = (e) => {
+    const isEnabled = e.target.checked;
+    setAutoEmail(isEnabled);
+    localStorage.setItem('autoEmail', isEnabled);
+  };
+
   // Wrap sendEmailAlert in useCallback.
   const sendEmailAlert = useCallback(
-    async (vm) => {
+    async (vm, e) => {
+      if (e) e.stopPropagation();
       try {
         const response = await axios.post('http://localhost:5000/send-alert', {
           vmName: vm.name,
@@ -218,6 +166,26 @@ function Alerts() {
 
   const toggleSidebar = () => setSidebarOpen((prev) => !prev);
 
+  // Modal open and close handlers.
+  const openModal = (vm, e) => {
+    if (e) e.stopPropagation();
+    setSelectedAlert(vm);
+  };
+  const closeModal = () => setSelectedAlert(null);
+
+  // Trigger toast for critical alerts.
+  useEffect(() => {
+    allCriticalVMs.forEach((vm) => {
+      const offline = !vm.last_updated || isVMOffline(vm.last_updated);
+      if (!offline && isCritical(vm, cpuThreshold, memoryThreshold)) {
+        toast.error(`VM ${vm.name} is in critical state!`, {
+          position: 'top-right',
+          autoClose: 3000,
+        });
+      }
+    });
+  }, [allCriticalVMs, cpuThreshold, memoryThreshold]);
+
   const overviewData = {
     totalVMs: vmData.length,
     runningVMs: vmData.filter(
@@ -229,7 +197,6 @@ function Alerts() {
     criticalVMs: vmData.filter((vm) => isCritical(vm, cpuThreshold, memoryThreshold)).length,
   };
 
-  // Layout: Three columns – Sidebar (left), main content (center), and User Info panel (right).
   const mainContainerStyle = {
     marginLeft: sidebarOpen ? '250px' : '0',
     marginRight: '0px', // Reserve 300px for User Info panel
@@ -251,37 +218,13 @@ function Alerts() {
     flex: 1,
   };
 
-  // Card background color (for simplicity, we always use the default for alerts here).
-  const defaultCardBg = theme === 'light' ? '#fff' : '#333';
-
-  const handleAutoEmailToggle = (e) => {
-    const isEnabled = e.target.checked;
-    setAutoEmail(isEnabled);
-    localStorage.setItem('autoEmail', isEnabled);
-  };
-  
-
   return (
     <Box sx={{ display: 'flex' }}>
       {sidebarOpen && <Sidebar overviewData={overviewData} onClose={toggleSidebar} />}
       <Box sx={mainContainerStyle}>
         <Box sx={{ display: 'flex', alignItems: 'center', mb: 2 }}>
-          <FaBars onClick={toggleSidebar} style={{ fontSize: '24px', cursor: 'pointer', mr: '10px' }} />
+          <FaBars onClick={toggleSidebar} style={{ fontSize: '24px', cursor: 'pointer', marginRight: '10px' }} />
           <Typography variant="h4">Alerts</Typography>
-        </Box>
-        <Box sx={{ mb: 2 }}>
-          <Typography component="label" sx={{ fontWeight: 'bold', mr: 1 }}>
-            Filter Alerts:
-          </Typography>
-          <MuiSelect
-            value={filter}
-            onChange={handleFilterChange}
-            sx={{ width: '200px', p: '5px 10px', borderRadius: '5px' }}
-          >
-            <MenuItem value="All">All</MenuItem>
-            <MenuItem value="CPU">{`CPU > ${cpuThreshold}%`}</MenuItem>
-            <MenuItem value="Memory">{`Memory > ${memoryThreshold}%`}</MenuItem>
-          </MuiSelect>
         </Box>
         <Typography variant="h5" sx={{ mb: 2 }}>
           Unacknowledged Alerts
@@ -291,7 +234,7 @@ function Alerts() {
             {currentRows.map((vm) => (
               <Box
                 key={vm.id}
-                onClick={() => setSelectedAlert(vm)}
+                onClick={(e) => openModal(vm, e)}
                 sx={{
                   mb: 2,
                   p: 2,
@@ -303,12 +246,22 @@ function Alerts() {
                 }}
               >
                 <Typography variant="h6">{vm.name}</Typography>
-                <Button variant="contained" onClick={() => handleAcknowledge(vm.id)} sx={{ ml: 1 }}>
-                  Acknowledge
-                </Button>
-                <Button variant="contained" onClick={() => sendEmailAlert(vm)} sx={{ ml: 1 }}>
-                  Send Email
-                </Button>
+                <Box sx={{ mt: 1 }}>
+                  <Button
+                    variant="contained"
+                    onClick={(e) => { e.stopPropagation(); handleAcknowledge(vm.id); }}
+                    sx={{ mr: 1 }}
+                  >
+                    Acknowledge
+                  </Button>
+                  <Button
+                    variant="contained"
+                    onClick={(e) => { e.stopPropagation(); sendEmailAlert(vm, e); }}
+                    sx={{ ml: 1 }}
+                  >
+                    Send Email
+                  </Button>
+                </Box>
               </Box>
             ))}
           </Box>
@@ -367,7 +320,7 @@ function Alerts() {
               <TextField
                 type="email"
                 value={recipientEmail}
-                onChange={handleRecipientChange}
+                onChange={(e) => setRecipientEmail(e.target.value)}
                 size="small"
                 sx={{ mt: 1 }}
               />
@@ -388,7 +341,7 @@ function Alerts() {
           <Typography variant="body1" sx={{ fontWeight: 'bold', mr: 1 }}>
             Toggle Auto Email:
           </Typography>
-          <ToggleSwitch checked={autoEmail} onChange={handleAutoEmailToggle} />
+          <Switch checked={autoEmail} onChange={handleAutoEmailToggle} />
         </Box>
       </Box>
       <ReactModal
@@ -406,19 +359,19 @@ function Alerts() {
             <Typography variant="body1">
               <strong>CPU Usage:</strong>{' '}
               {selectedAlert.last_updated && isVMOffline(selectedAlert.last_updated)
-                ? '0%'
+                ? 'Offline'
                 : `${selectedAlert.cpu || 0}%`}
             </Typography>
             <Typography variant="body1">
               <strong>Memory Usage:</strong>{' '}
               {selectedAlert.last_updated && isVMOffline(selectedAlert.last_updated)
-                ? '0%'
+                ? 'Offline'
                 : `${selectedAlert.memory || 0}%`}
             </Typography>
             <Typography variant="body1">
               <strong>Disk Usage:</strong>{' '}
               {selectedAlert.last_updated && isVMOffline(selectedAlert.last_updated)
-                ? '0%'
+                ? 'Offline'
                 : `${selectedAlert.disk || 0}%`}
             </Typography>
             <Typography variant="body1">
@@ -434,7 +387,7 @@ function Alerts() {
                 <Typography variant="body1">
                   <strong>Bytes Received:</strong> {selectedAlert.network?.bytes_recv?.toLocaleString() || 0} B
                 </Typography>
-              </Box>  
+              </Box>
             )}
             <Button variant="contained" onClick={() => setSelectedAlert(null)} sx={{ mt: 2 }}>
               Close
