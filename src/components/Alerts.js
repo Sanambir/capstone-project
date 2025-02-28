@@ -131,7 +131,7 @@ function Alerts() {
     async (vm, e) => {
       if (e) e.stopPropagation();
       try {
-        const response = await axios.post('http://localhost:5000/send-alert', {
+        const response = await axios.post('https://capstone-email-server-cxcaazggfrg2g6hc.canadacentral-01.azurewebsites.net/send-alert', {
           vmName: vm.name,
           cpu: vm.cpu,
           memory: vm.memory,
