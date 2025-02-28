@@ -7,7 +7,7 @@ const nodemailer = require('nodemailer');
 const cors = require('cors');
 
 const app = express();
-const port = 5000;
+const port = process.env.PORT || 5000; // Use Azure-assigned port if available
 
 app.use(bodyParser.json());
 app.use(cors());
@@ -16,8 +16,8 @@ app.use(cors());
 const transporter = nodemailer.createTransport({
   service: 'gmail',
   auth: {
-    user: process.env.EMAIL_USER,          // Your Gmail address from .env
-    pass: process.env.EMAIL_PASS,          // Your app-specific password from .env
+    user: process.env.EMAIL_USER,          // Your Gmail address from Azure App Settings
+    pass: process.env.EMAIL_PASS,          // Your app-specific password from Azure App Settings
   },
 });
 
@@ -35,7 +35,7 @@ app.post('/send-alert', (req, res) => {
   const { vmName, cpu, memory, disk, recipientEmail } = req.body;
 
   const mailOptions = {
-    from: process.env.EMAIL_USER, // Sender address from env variable
+    from: process.env.EMAIL_USER, // Sender address from environment variable
     to: recipientEmail || process.env.RECIPIENT_DEFAULT, // Use provided recipient or default
     subject: `Critical Alert for ${vmName}`,
     text: `Alert: ${vmName} is in a critical state.\nCPU: ${cpu}%\nMemory: ${memory}%\nDisk: ${disk}%`,
