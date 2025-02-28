@@ -68,5 +68,4 @@ jobs:
             app-name: 'capstone-email-server'
             slot-name: 'Production'
             package: .
-            takeAppOffline: true
           

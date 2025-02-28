@@ -10,7 +10,7 @@ const app = express();
 const port = process.env.PORT || 5000; // Use Azure-assigned port if available
 
 app.use(bodyParser.json());
-app.use(cors());
+app.use(cors({ origin: '*' }));
 
 // Configure your email transporter using environment variables
 const transporter = nodemailer.createTransport({
