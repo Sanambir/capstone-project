@@ -7,7 +7,7 @@ const nodemailer = require('nodemailer');
 const cors = require('cors');
 
 const app = express();
-const port = process.env.PORT || 5000; // Use Azure-assigned port if available
+const port = process.env.PORT || 8080; // Use Azure-assigned port if available
 
 app.use(bodyParser.json());
 app.use(cors({ origin: '*' }));
