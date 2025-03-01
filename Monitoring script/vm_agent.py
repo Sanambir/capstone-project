@@ -25,7 +25,7 @@ host_name = socket.gethostname()
 os_type = platform.system()
 
 # Base URL configuration (make sure JSON Server is running on port 3001)
-API_BASE_URL = "https://capstone-ctfhh0dvb6ehaxaw.canadacentral-01.azurewebsites.net/vms"
+API_BASE_URL = "https://capstone-ctfhh0dvb6ehaxaw.canadacentral-01.azurewebsites.net/api/vms"
 # Initially set API_URL using our local agent_id.
 API_URL = f"{API_BASE_URL}/{agent_id}"
 

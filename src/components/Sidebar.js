@@ -1,10 +1,12 @@
 import React, { useContext } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import { ThemeContext } from '../ThemeContext';
 import { FaTimes } from 'react-icons/fa';
+import { Box, Button, Typography } from '@mui/material';
 
 function Sidebar({ overviewData, onClose, style }) {
   const { theme } = useContext(ThemeContext);
+  const navigate = useNavigate();
   const backgroundColor = theme === 'light' ? '#343a40' : '#111';
   const cardBackground = theme === 'light' ? '#495057' : '#333';
 
@@ -20,7 +22,14 @@ function Sidebar({ overviewData, onClose, style }) {
     padding: '20px',
     boxSizing: 'border-box',
     transition: 'all 0.3s ease',
+    display: 'flex',
+    flexDirection: 'column',
     ...style, // merge any passed style
+  };
+
+  const handleLogout = () => {
+    localStorage.removeItem('authToken');
+    navigate('/');
   };
 
   return (
@@ -44,7 +53,7 @@ function Sidebar({ overviewData, onClose, style }) {
           <p>Critical: {overviewData.criticalVMs}</p>
         </div>
       )}
-      <ul style={{ listStyle: 'none', padding: 0 }}>
+      <ul style={{ listStyle: 'none', padding: 0, flexGrow: 1 }}>
         <li style={{ marginBottom: '15px' }}>
           <Link
             to="/dashboard"
@@ -116,6 +125,11 @@ function Sidebar({ overviewData, onClose, style }) {
           </Link>
         </li>
       </ul>
+      <Box sx={{ mt: 'auto' }}>
+        <Button variant="contained" color="error" onClick={handleLogout} fullWidth>
+          Logout
+        </Button>
+      </Box>
     </div>
   );
 }

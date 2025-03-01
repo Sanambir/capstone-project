@@ -7,6 +7,7 @@ import PerformanceChart from './components/PerformanceChart';
 import Settings from './components/Settings';
 import Login from './components/Login';
 import Signup from './components/Signup';
+import ProtectedRoute from './components/ProtectedRoute';
 import { ThemeProvider } from './ThemeContext'; // Ensure this is your custom provider
 
 function App() {
@@ -15,12 +16,47 @@ function App() {
       <Router>
         <Routes>
           <Route path="/" element={<Login />} />
-          <Route path='/signup' element={<Signup />} />
-          <Route path="/dashboard" element={<Dashboard />} />
-          <Route path="/alerts" element={<Alerts />} />
-          <Route path="/manage" element={<ManageVMs />} />
-          <Route path="/performance" element={<PerformanceChart />} />
-          <Route path="/settings" element={<Settings />} />
+          <Route path="/signup" element={<Signup />} />
+          <Route
+            path="/dashboard"
+            element={
+              <ProtectedRoute>
+                <Dashboard />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/alerts"
+            element={
+              <ProtectedRoute>
+                <Alerts />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/manage"
+            element={
+              <ProtectedRoute>
+                <ManageVMs />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/performance"
+            element={
+              <ProtectedRoute>
+                <PerformanceChart />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/settings"
+            element={
+              <ProtectedRoute>
+                <Settings />
+              </ProtectedRoute>
+            }
+          />
         </Routes>
       </Router>
     </ThemeProvider>

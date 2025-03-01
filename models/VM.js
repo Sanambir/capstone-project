@@ -15,8 +15,8 @@ const VMSchema = new mongoose.Schema({
   },
   status: { type: String, default: 'Running' },
   last_updated: { type: Date, default: Date.now },
-  // Optional: user reference for user-specific VMs
-  user: { type: mongoose.Schema.Types.ObjectId, ref: 'User' }
+  // Associate this VM with a User (required)
+  user: { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: true }
 });
 
 module.exports = mongoose.model('VM', VMSchema);

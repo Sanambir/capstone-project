@@ -51,11 +51,19 @@ function Dashboard() {
   const memoryThreshold = Number(localStorage.getItem('memoryThreshold')) || 80;
   const idleThreshold = 20;
 
-  // Fetch VM data every 5 seconds
+  // Fetch user-specific VM data every 5 seconds
   useEffect(() => {
     const fetchData = async () => {
       try {
-        const response = await fetch('https://capstone-ctfhh0dvb6ehaxaw.canadacentral-01.azurewebsites.net/vms');
+        const token = localStorage.getItem('authToken');
+        const response = await fetch(
+          `${process.env.REACT_APP_API_URL || 'https://capstone-ctfhh0dvb6ehaxaw.canadacentral-01.azurewebsites.net'}/api/vms`,
+          {
+            headers: {
+              Authorization: `Bearer ${token}`,
+            },
+          }
+        );
         if (response.ok) {
           const data = await response.json();
           setVmData(data);
@@ -180,7 +188,7 @@ function Dashboard() {
           if (offline) bgColor = offlineCardBg;
           else if (isCritical(vm, cpuThreshold, memoryThreshold)) bgColor = criticalCardBg;
 
-          // If offline, we want to show "Offline" instead of numerical values.
+          // If offline, show "Offline" values.
           const cpuValue = offline ? 0 : vm.cpu || 0;
           const memValue = offline ? 0 : vm.memory || 0;
           const diskValue = offline ? 0 : vm.disk || 0;

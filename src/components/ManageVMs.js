@@ -16,7 +16,7 @@ function ManageVMs() {
   // Fetch VMs from JSON Server
   const fetchVMs = async () => {
     try {
-      const response = await axios.get('https://capstone-ctfhh0dvb6ehaxaw.canadacentral-01.azurewebsites.net/vms');
+      const response = await axios.get('https://capstone-ctfhh0dvb6ehaxaw.canadacentral-01.azurewebsites.net/api/vms');
       setVMs(response.data);
     } catch (err) {
       console.error('Error fetching VMs:', err);
@@ -37,7 +37,7 @@ function ManageVMs() {
   const addVM = async (e) => {
     e.preventDefault();
     try {
-      await axios.post('https://capstone-ctfhh0dvb6ehaxaw.canadacentral-01.azurewebsites.net/vms', {
+      await axios.post('https://capstone-ctfhh0dvb6ehaxaw.canadacentral-01.azurewebsites.net/api/vms', {
         ...newVM,
         cpu: 0,
         memory: 0,
@@ -62,7 +62,7 @@ function ManageVMs() {
   // Delete a VM
   const deleteVM = async (id) => {
     try {
-      await axios.delete(`https://capstone-ctfhh0dvb6ehaxaw.canadacentral-01.azurewebsites.net/vms/${id}`);
+      await axios.delete(`https://capstone-ctfhh0dvb6ehaxaw.canadacentral-01.azurewebsites.net/api/vms/${id}`);
       fetchVMs();
     } catch (err) {
       console.error('Error deleting VM:', err);
@@ -85,7 +85,7 @@ function ManageVMs() {
   const updateVM = async (id) => {
     try {
       const vmToUpdate = vms.find((vm) => vm.id === id);
-      await axios.put(`https://capstone-ctfhh0dvb6ehaxaw.canadacentral-01.azurewebsites.net/vms/${id}`, {
+      await axios.put(`https://capstone-ctfhh0dvb6ehaxaw.canadacentral-01.azurewebsites.net/api/vms/${id}`, {
         ...vmToUpdate,
         ...editedData,
         last_updated: new Date().toISOString(),

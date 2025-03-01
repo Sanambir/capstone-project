@@ -63,7 +63,7 @@ function Alerts() {
     const fetchData = async () => {
       try {
         const response = await fetch(
-          'https://capstone-ctfhh0dvb6ehaxaw.canadacentral-01.azurewebsites.net/vms'
+          'https://capstone-ctfhh0dvb6ehaxaw.canadacentral-01.azurewebsites.net/api/vms'
         );
         if (response.ok) {
           const data = await response.json();

@@ -1,7 +1,8 @@
 // src/components/Login.js
 import React, { useState } from 'react';
 import axios from 'axios';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, Link } from 'react-router-dom';
+import { Box, Typography, TextField, Button } from '@mui/material';
 
 function Login() {
   const [email, setEmail] = useState('');
@@ -26,27 +27,40 @@ function Login() {
   };
 
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', marginTop: '100px' }}>
-      <h2>Login</h2>
-      {error && <p style={{ color: 'red' }}>{error}</p>}
-      <input
-        type="email"
-        placeholder="Email"
+    <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'center', mt: 10 }}>
+      <Typography variant="h4" gutterBottom>
+        Login
+      </Typography>
+      {error && (
+        <Typography variant="body1" color="error" sx={{ mb: 2 }}>
+          {error}
+        </Typography>
+      )}
+      <TextField
+        label="Email"
+        variant="outlined"
         value={email}
         onChange={(e) => setEmail(e.target.value)}
-        style={{ marginBottom: '10px', padding: '8px', width: '250px' }}
+        sx={{ mb: 2, width: 300 }}
       />
-      <input
+      <TextField
+        label="Password"
+        variant="outlined"
         type="password"
-        placeholder="Password"
         value={password}
         onChange={(e) => setPassword(e.target.value)}
-        style={{ marginBottom: '10px', padding: '8px', width: '250px' }}
+        sx={{ mb: 2, width: 300 }}
       />
-      <button onClick={handleLogin} style={{ padding: '10px 20px' }}>
+      <Button variant="contained" onClick={handleLogin} sx={{ width: 300, mb: 2 }}>
         Login
-      </button>
-    </div>
+      </Button>
+      <Typography variant="body2">
+        Don't have an account?{' '}
+        <Link to="/signup" style={{ textDecoration: 'none', color: '#1976d2' }}>
+          Sign Up
+        </Link>
+      </Typography>
+    </Box>
   );
 }
 

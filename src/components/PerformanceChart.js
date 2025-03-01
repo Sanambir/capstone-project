@@ -20,7 +20,7 @@ function PerformanceChart() {
   useEffect(() => {
     const fetchVms = async () => {
       try {
-        const res = await fetch('https://capstone-ctfhh0dvb6ehaxaw.canadacentral-01.azurewebsites.net/vms');
+        const res = await fetch('https://capstone-ctfhh0dvb6ehaxaw.canadacentral-01.azurewebsites.net/api/vms');
         if (res.ok) {
           const data = await res.json();
           setVmList(data);
@@ -50,7 +50,7 @@ function PerformanceChart() {
     if (selectedVmIds.length === 0) return;
     const fetchDataForVm = async (id) => {
       try {
-        const res = await fetch(`https://capstone-ctfhh0dvb6ehaxaw.canadacentral-01.azurewebsites.net/vms/${id}`);
+        const res = await fetch(`https://capstone-ctfhh0dvb6ehaxaw.canadacentral-01.azurewebsites.net/api/vms/${id}`);
         if (res.ok) {
           const data = await res.json();
           setHistoryData((prev) => {
