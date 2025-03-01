@@ -1,65 +1,52 @@
+// src/components/Login.js
 import React, { useState } from 'react';
+import axios from 'axios';
 import { useNavigate } from 'react-router-dom';
-import { Box, Button, Typography, TextField } from '@mui/material';
 
 function Login() {
-  const [username, setUsername] = useState('');
+  const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
   const navigate = useNavigate();
 
-  const handleLogin = () => {
-    if (username === 'admin' && password === 'password') {
-      localStorage.setItem('authToken', 'mockToken123');
-      navigate('/dashboard');
-    } else {
-      setError('Invalid username or password');
+  const handleLogin = async () => {
+    try {
+      const response = await axios.post(
+        `${process.env.REACT_APP_API_URL || ''}/api/auth/login`,
+        { email, password }
+      );
+      if (response.data.token) {
+        localStorage.setItem('authToken', response.data.token);
+        navigate('/dashboard');
+      }
+    } catch (err) {
+      console.error('Login error:', err);
+      setError('Invalid credentials. Please try again.');
     }
   };
 
   return (
-    <Box
-      sx={{
-        display: 'flex',
-        justifyContent: 'center',
-        alignItems: 'center',
-        height: '100vh',
-        backgroundColor: '#f4f4f4',
-      }}
-    >
-      <Box
-        sx={{
-          width: '300px',
-          p: 2,
-          border: '1px solid #ddd',
-          borderRadius: '10px',
-          backgroundColor: '#fff',
-        }}
-      >
-        <Typography variant="h5" sx={{ mb: 2 }}>
-          Login
-        </Typography>
-        {error && <Typography color="error">{error}</Typography>}
-        <TextField
-          label="Username"
-          value={username}
-          onChange={(e) => setUsername(e.target.value)}
-          fullWidth
-          sx={{ mb: 2 }}
-        />
-        <TextField
-          label="Password"
-          type="password"
-          value={password}
-          onChange={(e) => setPassword(e.target.value)}
-          fullWidth
-          sx={{ mb: 2 }}
-        />
-        <Button onClick={handleLogin} variant="contained" fullWidth>
-          Login
-        </Button>
-      </Box>
-    </Box>
+    <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', marginTop: '100px' }}>
+      <h2>Login</h2>
+      {error && <p style={{ color: 'red' }}>{error}</p>}
+      <input
+        type="email"
+        placeholder="Email"
+        value={email}
+        onChange={(e) => setEmail(e.target.value)}
+        style={{ marginBottom: '10px', padding: '8px', width: '250px' }}
+      />
+      <input
+        type="password"
+        placeholder="Password"
+        value={password}
+        onChange={(e) => setPassword(e.target.value)}
+        style={{ marginBottom: '10px', padding: '8px', width: '250px' }}
+      />
+      <button onClick={handleLogin} style={{ padding: '10px 20px' }}>
+        Login
+      </button>
+    </div>
   );
 }
 

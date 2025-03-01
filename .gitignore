@@ -19,7 +19,7 @@
 .env.production.local
 alert-server/.env
 .db.json
-
+.env
 
 npm-debug.log*
 yarn-debug.log*

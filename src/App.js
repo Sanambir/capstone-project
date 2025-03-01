@@ -6,6 +6,7 @@ import ManageVMs from './components/ManageVMs';
 import PerformanceChart from './components/PerformanceChart';
 import Settings from './components/Settings';
 import Login from './components/Login';
+import Signup from './components/Signup';
 import { ThemeProvider } from './ThemeContext'; // Ensure this is your custom provider
 
 function App() {
@@ -14,6 +15,7 @@ function App() {
       <Router>
         <Routes>
           <Route path="/" element={<Login />} />
+          <Route path='/signup' element={<Signup />} />
           <Route path="/dashboard" element={<Dashboard />} />
           <Route path="/alerts" element={<Alerts />} />
           <Route path="/manage" element={<ManageVMs />} />
