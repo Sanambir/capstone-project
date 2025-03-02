@@ -1,4 +1,3 @@
-// server.js
 require('dotenv').config();
 const express = require('express');
 const path = require('path');
@@ -19,10 +18,12 @@ app.use(express.json());
 // Import routes
 const authRouter = require('./routes/auth'); // Authentication endpoints
 const vmRouter = require('./routes/vms');     // VM endpoints
+const usersRouter = require('./routes/users'); // New users endpoint
 
 // Use the routes under /api
 app.use('/api/auth', authRouter);
 app.use('/api/vms', vmRouter);
+app.use('/api/users', usersRouter);  // Mount the users route
 
 // Serve static files from the React app's build folder
 app.use(express.static(path.join(__dirname, 'build')));

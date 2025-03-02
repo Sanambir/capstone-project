@@ -2,7 +2,7 @@
 const express = require('express');
 const bcrypt = require('bcrypt');
 const jwt = require('jsonwebtoken');
-const User = require('../models/User'); // Create a User model as shown below
+const User = require('../models/User');
 
 const router = express.Router();
 
@@ -36,8 +36,10 @@ router.post('/login', async (req, res) => {
     if (!isMatch) {
       return res.status(400).json({ message: 'Invalid credentials' });
     }
+    // Sign the token with both the user id and email.
     const token = jwt.sign({ id: user._id, email: user.email }, process.env.JWT_SECRET, { expiresIn: '1h' });
-    res.json({ token, userId: user._id });
+    // Return token, userId, and email in response
+    res.json({ token, userId: user._id, email: user.email });
   } catch (error) {
     console.error('Login error:', error);
     res.status(500).json({ message: 'Server error' });

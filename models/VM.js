@@ -2,6 +2,7 @@
 const mongoose = require('mongoose');
 
 const VMSchema = new mongoose.Schema({
+  _id: { type: String, required: true }, // Use our own agent ID as the _id
   name: { type: String, required: true },
   os: { type: String },
   cpu: { type: Number, default: 0 },
@@ -15,8 +16,8 @@ const VMSchema = new mongoose.Schema({
   },
   status: { type: String, default: 'Running' },
   last_updated: { type: Date, default: Date.now },
-  // Associate this VM with a User (required)
-  user: { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: true }
+  // Store the user's email as a string
+  user: { type: String, required: true }
 });
 
 module.exports = mongoose.model('VM', VMSchema);

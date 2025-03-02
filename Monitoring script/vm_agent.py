@@ -1,4 +1,5 @@
 import os
+import json
 import uuid
 import socket
 import platform
@@ -6,6 +7,7 @@ import time
 import datetime
 import psutil
 import requests
+import getpass
 
 # --- Utility: Get or Create a Local Agent ID ---
 def get_agent_id():
@@ -19,47 +21,108 @@ def get_agent_id():
             f.write(agent_id)
     return agent_id
 
-# Get system details
+# --- Login Function ---
+def login_and_get_token():
+    email = input("Enter your email address: ").strip()
+    password = getpass.getpass("Enter your password: ")
+    login_url = "http://localhost:3001/api/auth/login"
+    try:
+        response = requests.post(login_url, json={"email": email, "password": password}, headers={"Content-Type": "application/json"})
+        if response.status_code in (200, 201):
+            data = response.json()
+            token = data.get("token")
+            if token:
+                print("Login successful.")
+                return email, token
+            else:
+                print("Login failed: Token not received.")
+                exit(1)
+        else:
+            print("Login failed:", response.text)
+            exit(1)
+    except Exception as e:
+        print("Error during login:", e)
+        exit(1)
+
+# --- Function to Check if User is Registered ---
+def check_user_exists(email, token):
+    url = "http://localhost:3001/api/users?email=" + email
+    headers = {
+        "Content-Type": "application/json",
+        "Authorization": "Bearer " + token
+    }
+    try:
+        response = requests.get(url, headers=headers)
+        print("User check response status:", response.status_code)
+        print("User check response text:", response.text)
+        if response.status_code == 200:
+            if response.text.strip() == "":
+                return False
+            try:
+                data = response.json()
+                if isinstance(data, list) and len(data) > 0:
+                    return True
+                if isinstance(data, dict) and data.get("email") == email:
+                    return True
+                return False
+            except Exception as e:
+                print("Error parsing JSON:", e)
+                return False
+        else:
+            return False
+    except Exception as e:
+        print("Error checking user existence:", e)
+        return False
+
+# --- Timestamp Helper ---
+def get_current_timestamp():
+    return datetime.datetime.now(datetime.timezone.utc).isoformat().replace("+00:00", "Z")
+
+# --- Main Initialization ---
 agent_id = get_agent_id()
 host_name = socket.gethostname()
 os_type = platform.system()
 
-# Base URL configuration (make sure JSON Server is running on port 3001)
-API_BASE_URL = "https://capstone-ctfhh0dvb6ehaxaw.canadacentral-01.azurewebsites.net/api/vms"
-# Initially set API_URL using our local agent_id.
-API_URL = f"{API_BASE_URL}/{agent_id}"
+# Login to obtain JWT token automatically.
+USER_EMAIL, USER_TOKEN = login_and_get_token()
+
+# Check if the user is registered.
+if not check_user_exists(USER_EMAIL, USER_TOKEN):
+    print("This email is not registered on the dashboard. Please register there first.")
+    exit(1)
+else:
+    print("User found. Proceeding with monitoring...")
+
+# --- API Endpoint Configuration for VM Records ---
+API_BASE_URL = "http://localhost:3001/api/vms"
+API_URL = f"{API_BASE_URL}/{agent_id}"  # This will be used to get/update the VM record
 
 # --- Record Management on the Server ---
 def create_vm_record(initial_data):
-    """
-    Create a new VM record on the server via POST.
-    The record will be created with our supplied ID.
-    """
+    headers = {"Authorization": "Bearer " + USER_TOKEN}
     try:
-        response = requests.post(API_BASE_URL, json=initial_data)
+        response = requests.post(API_BASE_URL, json=initial_data, headers=headers)
         if response.status_code in (200, 201):
             created_record = response.json()
             print("Created record response:", created_record)
             return created_record
         else:
-            print("Failed to create VM record:", response.status_code)
+            print("Failed to create VM record:", response.status_code, response.text)
     except Exception as e:
         print("Error creating VM record:", e)
     return None
 
 def ensure_vm_record():
-    """
-    Ensure the current VM's record exists.
-    If not (i.e. GET returns 404), create a new record with the supplied ID.
-    """
     global agent_id, API_URL
+    headers = {"Authorization": "Bearer " + USER_TOKEN}
     try:
-        # Try to GET using the current API_URL.
-        get_response = requests.get(API_URL)
-        if get_response.status_code == 404:
-            # Record not found; create a new record by supplying our own "id".
+        get_response = requests.get(API_URL, headers=headers)
+        print("GET response status:", get_response.status_code)
+        print("GET response text:", get_response.text)
+        # If record not found (404 or empty), create a new one.
+        if get_response.status_code == 404 or get_response.text.strip() in ["", "{}", "null"]:
             initial_data = {
-                "id": agent_id,  # Supply our own UUID
+                "_id": agent_id,  # Use _id here
                 "name": host_name,
                 "os": os_type,
                 "cpu": 0,
@@ -72,12 +135,12 @@ def ensure_vm_record():
                     "packets_recv": 0
                 },
                 "status": "Running",
-                "last_updated": datetime.datetime.utcnow().isoformat() + "Z"
+                "last_updated": get_current_timestamp(),
+                "user": USER_EMAIL
             }
             created_record = create_vm_record(initial_data)
             if created_record:
-                # Optionally, update agent_id if the response returns a different value.
-                new_id = created_record.get("id")
+                new_id = created_record.get("_id")
                 if new_id and new_id != agent_id:
                     agent_id = new_id
                     with open("agent_id.txt", "w") as f:
@@ -91,19 +154,14 @@ def ensure_vm_record():
     except Exception as e:
         print("Error ensuring VM record exists:", e)
 
-# Ensure that the VM record exists before starting metrics updates.
 ensure_vm_record()
 
 # --- Metrics Collection & Reporting ---
 def collect_metrics():
-    """
-    Collect system metrics and include static fields so the record isn't overwritten.
-    Timestamps are generated in UTC.
-    """
     metrics = {
-        "id": agent_id,         # Use the supplied agent_id
-        "name": host_name,      # System name
-        "os": os_type,          # Operating system
+        "_id": agent_id,  # Use _id here as well
+        "name": host_name,
+        "os": os_type,
         "cpu": psutil.cpu_percent(interval=1),
         "memory": psutil.virtual_memory().percent,
         "disk": psutil.disk_usage('/').percent,
@@ -114,25 +172,24 @@ def collect_metrics():
             "packets_recv": psutil.net_io_counters().packets_recv
         },
         "status": "Running",
-        "last_updated": datetime.datetime.utcnow().isoformat() + "Z"
+        "last_updated": get_current_timestamp(),
+        "user": USER_EMAIL
     }
     return metrics
 
 def send_metrics():
-    """
-    Send the collected metrics to the JSON Server using a PUT request.
-    """
     data = collect_metrics()
+    print("Sending metrics data:", data)
+    headers = {"Authorization": "Bearer " + USER_TOKEN}
     try:
-        response = requests.put(API_URL, json=data)
+        response = requests.put(API_URL, json=data, headers=headers)
         if response.status_code in (200, 201):
             print("Metrics updated successfully.")
         else:
-            print("Failed to update metrics:", response.status_code)
+            print("Failed to update metrics:", response.status_code, response.text)
     except Exception as e:
         print("Error sending metrics:", e)
 
-# --- Main Loop ---
 if __name__ == '__main__':
     while True:
         send_metrics()
