@@ -41,7 +41,7 @@ function Alerts() {
   const cpuThreshold = Number(localStorage.getItem('cpuThreshold')) || 80;
   const memoryThreshold = Number(localStorage.getItem('memoryThreshold')) || 80;
 
-  // Define default card background.
+  // Default card background.
   const defaultCardBg = theme === 'light' ? '#fff' : '#333';
 
   // Load saved settings on mount.
@@ -58,13 +58,19 @@ function Alerts() {
     localStorage.setItem('autoEmailSent', JSON.stringify(autoEmailSent));
   }, [autoEmailSent]);
 
-  // Fetch VM data every 5 seconds.
+  // Fetch VM data every 5 seconds with Authorization header.
   useEffect(() => {
     const fetchData = async () => {
       try {
-        const response = await fetch(
-          'https://capstone-ctfhh0dvb6ehaxaw.canadacentral-01.azurewebsites.net/api/vms'
-        );
+        const token = localStorage.getItem('authToken');
+        const apiUrl =
+          process.env.REACT_APP_API_URL ||
+          'https://capstone-ctfhh0dvb6ehaxaw.canadacentral-01.azurewebsites.net';
+        const response = await fetch(`${apiUrl}/api/vms`, {
+          headers: {
+            Authorization: `Bearer ${token}`,
+          },
+        });
         if (response.ok) {
           const data = await response.json();
           setVmData(data);
@@ -86,8 +92,13 @@ function Alerts() {
     return online && (vm.cpu > cpuThreshold || vm.memory > memoryThreshold);
   });
 
-  const unacknowledgedCritical = allCriticalVMs.filter((vm) => !acknowledgedAlerts[vm.id]);
-  const acknowledgedCritical = allCriticalVMs.filter((vm) => acknowledgedAlerts[vm.id]);
+  // Use vm._id consistently for filtering.
+  const unacknowledgedCritical = allCriticalVMs.filter(
+    (vm) => !acknowledgedAlerts[vm._id]
+  );
+  const acknowledgedCritical = allCriticalVMs.filter(
+    (vm) => acknowledgedAlerts[vm._id]
+  );
 
   const indexOfLastRow = currentPage * rowsPerPage;
   const indexOfFirstRow = indexOfLastRow - rowsPerPage;
@@ -131,13 +142,16 @@ function Alerts() {
     async (vm, e) => {
       if (e) e.stopPropagation();
       try {
-        const response = await axios.post('https://capstone-email-server-cxcaazggfrg2g6hc.canadacentral-01.azurewebsites.net/send-alert', {
-          vmName: vm.name,
-          cpu: vm.cpu,
-          memory: vm.memory,
-          disk: vm.disk,
-          recipientEmail,
-        });
+        const response = await axios.post(
+          'https://capstone-email-server-cxcaazggfrg2g6hc.canadacentral-01.azurewebsites.net/send-alert',
+          {
+            vmName: vm.name,
+            cpu: vm.cpu,
+            memory: vm.memory,
+            disk: vm.disk,
+            recipientEmail,
+          }
+        );
         console.log(`Email alert sent for ${vm.name}:`, response.data.message);
       } catch (error) {
         console.error('Error sending alert email:', error);
@@ -151,13 +165,13 @@ function Alerts() {
       const now = Date.now();
       const frequencyMs = emailFrequency * 60 * 1000;
       unacknowledgedCritical.forEach((vm) => {
-        const lastSent = autoEmailSent[vm.id];
+        const lastSent = autoEmailSent[vm._id];
         if (!lastSent) {
-          setAutoEmailSent((prev) => ({ ...prev, [vm.id]: now }));
+          setAutoEmailSent((prev) => ({ ...prev, [vm._id]: now }));
         } else if (now - lastSent > frequencyMs) {
           if (recipientEmail && recipientEmail.trim() !== '') {
             sendEmailAlert(vm);
-            setAutoEmailSent((prev) => ({ ...prev, [vm.id]: now }));
+            setAutoEmailSent((prev) => ({ ...prev, [vm._id]: now }));
           }
         }
       });
@@ -194,7 +208,8 @@ function Alerts() {
         !isVMOffline(vm.last_updated) &&
         (vm.cpu <= cpuThreshold && vm.memory <= memoryThreshold)
     ).length,
-    criticalVMs: vmData.filter((vm) => isCritical(vm, cpuThreshold, memoryThreshold)).length,
+    criticalVMs: vmData.filter((vm) => isCritical(vm, cpuThreshold, memoryThreshold))
+      .length,
   };
 
   const mainContainerStyle = {
@@ -223,7 +238,10 @@ function Alerts() {
       {sidebarOpen && <Sidebar overviewData={overviewData} onClose={toggleSidebar} />}
       <Box sx={mainContainerStyle}>
         <Box sx={{ display: 'flex', alignItems: 'center', mb: 2 }}>
-          <FaBars onClick={toggleSidebar} style={{ fontSize: '24px', cursor: 'pointer', marginRight: '10px' }} />
+          <FaBars
+            onClick={toggleSidebar}
+            style={{ fontSize: '24px', cursor: 'pointer', marginRight: '10px' }}
+          />
           <Typography variant="h4">Alerts</Typography>
         </Box>
         <Typography variant="h5" sx={{ mb: 2 }}>
@@ -233,7 +251,7 @@ function Alerts() {
           <Box component="ul" sx={{ listStyle: 'none', p: 0 }}>
             {currentRows.map((vm) => (
               <Box
-                key={vm.id}
+                key={vm._id}
                 onClick={(e) => openModal(vm, e)}
                 sx={{
                   mb: 2,
@@ -249,14 +267,20 @@ function Alerts() {
                 <Box sx={{ mt: 1 }}>
                   <Button
                     variant="contained"
-                    onClick={(e) => { e.stopPropagation(); handleAcknowledge(vm.id); }}
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      handleAcknowledge(vm._id);
+                    }}
                     sx={{ mr: 1 }}
                   >
                     Acknowledge
                   </Button>
                   <Button
                     variant="contained"
-                    onClick={(e) => { e.stopPropagation(); sendEmailAlert(vm, e); }}
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      sendEmailAlert(vm, e);
+                    }}
                     sx={{ ml: 1 }}
                   >
                     Send Email
@@ -269,13 +293,23 @@ function Alerts() {
           <Typography>No critical alerts at the moment.</Typography>
         )}
         <Box sx={{ textAlign: 'center', mt: 2 }}>
-          <Button variant="contained" onClick={() => handlePageChange(currentPage - 1)} disabled={currentPage === 1} sx={{ mr: 1 }}>
+          <Button
+            variant="contained"
+            onClick={() => handlePageChange(currentPage - 1)}
+            disabled={currentPage === 1}
+            sx={{ mr: 1 }}
+          >
             Previous
           </Button>
           <Typography variant="body1" component="span" sx={{ mx: 1 }}>
             Page {currentPage} of {totalPages}
           </Typography>
-          <Button variant="contained" onClick={() => handlePageChange(currentPage + 1)} disabled={currentPage === totalPages} sx={{ ml: 1 }}>
+          <Button
+            variant="contained"
+            onClick={() => handlePageChange(currentPage + 1)}
+            disabled={currentPage === totalPages}
+            sx={{ ml: 1 }}
+          >
             Next
           </Button>
         </Box>
@@ -286,7 +320,7 @@ function Alerts() {
           <Box component="ul" sx={{ listStyle: 'none', p: 0 }}>
             {acknowledgedCritical.map((vm) => (
               <Box
-                key={vm.id}
+                key={vm._id}
                 sx={{
                   mb: 2,
                   p: 2,
@@ -297,7 +331,11 @@ function Alerts() {
                 }}
               >
                 <Typography variant="h6">{vm.name} (Acknowledged)</Typography>
-                <Button variant="contained" onClick={() => handleUnacknowledge(vm.id)} sx={{ ml: 1 }}>
+                <Button
+                  variant="contained"
+                  onClick={() => handleUnacknowledge(vm._id)}
+                  sx={{ ml: 1 }}
+                >
                   Remove Acknowledgement
                 </Button>
               </Box>
@@ -320,11 +358,15 @@ function Alerts() {
               <TextField
                 type="email"
                 value={recipientEmail}
-                onChange={(e) => setRecipientEmail(e.target.value)}
+                onChange={handleRecipientChange}
                 size="small"
                 sx={{ mt: 1 }}
               />
-              <Button variant="contained" onClick={handleEmailSave} sx={{ ml: 1, mt: 1 }}>
+              <Button
+                variant="contained"
+                onClick={handleEmailSave}
+                sx={{ ml: 1, mt: 1 }}
+              >
                 Save
               </Button>
             </>
@@ -350,7 +392,10 @@ function Alerts() {
         contentLabel="Alert Details"
         style={{
           overlay: { backgroundColor: 'rgba(0,0,0,0.5)' },
-          content: { backgroundColor: theme === 'light' ? '#fff' : '#444', color: theme === 'light' ? '#000' : '#fff' },
+          content: {
+            backgroundColor: theme === 'light' ? '#fff' : '#444',
+            color: theme === 'light' ? '#000' : '#fff',
+          },
         }}
       >
         {selectedAlert && (
@@ -382,10 +427,12 @@ function Alerts() {
             ) : (
               <Box>
                 <Typography variant="body1">
-                  <strong>Bytes Sent:</strong> {selectedAlert.network?.bytes_sent?.toLocaleString() || 0} B
+                  <strong>Bytes Sent:</strong>{' '}
+                  {selectedAlert.network?.bytes_sent?.toLocaleString() || 0} B
                 </Typography>
                 <Typography variant="body1">
-                  <strong>Bytes Received:</strong> {selectedAlert.network?.bytes_recv?.toLocaleString() || 0} B
+                  <strong>Bytes Received:</strong>{' '}
+                  {selectedAlert.network?.bytes_recv?.toLocaleString() || 0} B
                 </Typography>
               </Box>
             )}

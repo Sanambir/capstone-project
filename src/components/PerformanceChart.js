@@ -16,18 +16,26 @@ function PerformanceChart() {
   const [historyData, setHistoryData] = useState({}); // { vmId: [{ time, cpu, memory, disk }, ...] }
   const [sidebarOpen, setSidebarOpen] = useState(true);
 
+  // Optionally include token if your API requires it.
+  const token = localStorage.getItem('authToken');
+  const headers = token ? { Authorization: `Bearer ${token}` } : {};
+
   // Fetch VMs on mount.
   useEffect(() => {
     const fetchVms = async () => {
       try {
-        const res = await fetch('https://capstone-ctfhh0dvb6ehaxaw.canadacentral-01.azurewebsites.net/api/vms');
+        const res = await fetch(
+          `${process.env.REACT_APP_API_URL || 'https://capstone-ctfhh0dvb6ehaxaw.canadacentral-01.azurewebsites.net'}/api/vms`,
+          { headers }
+        );
         if (res.ok) {
           const data = await res.json();
           setVmList(data);
+          // Set a default selected VM if none is selected yet.
           if (data.length > 0 && selectedOptions.length === 0) {
-            const defaultOption = { value: data[0].id, label: data[0].name };
+            const defaultOption = { value: data[0]._id, label: data[0].name };
             setSelectedOptions([defaultOption]);
-            setSelectedVmIds([data[0].id]);
+            setSelectedVmIds([data[0]._id]);
           }
         } else {
           console.error('Failed to fetch VMs');
@@ -37,7 +45,7 @@ function PerformanceChart() {
       }
     };
     fetchVms();
-  }, []);
+  }, []); // Only on mount.
 
   // Update selectedVmIds when selectedOptions change.
   useEffect(() => {
@@ -50,7 +58,10 @@ function PerformanceChart() {
     if (selectedVmIds.length === 0) return;
     const fetchDataForVm = async (id) => {
       try {
-        const res = await fetch(`https://capstone-ctfhh0dvb6ehaxaw.canadacentral-01.azurewebsites.net/api/vms/${id}`);
+        const res = await fetch(
+          `${process.env.REACT_APP_API_URL || 'https://capstone-ctfhh0dvb6ehaxaw.canadacentral-01.azurewebsites.net'}/api/vms/${id}`,
+          { headers }
+        );
         if (res.ok) {
           const data = await res.json();
           setHistoryData((prev) => {
@@ -101,7 +112,7 @@ function PerformanceChart() {
   // Create datasets for a given metric.
   const createDatasets = (metric) =>
     selectedVmIds.map((id, index) => {
-      const vm = vmList.find((vm) => vm.id === id);
+      const vm = vmList.find((vm) => vm._id === id);
       const history = historyData[id] || [];
       const aggregatedHistory = aggregateData(history, 20);
       const colors = [
@@ -140,7 +151,7 @@ function PerformanceChart() {
     let csvContent = 'data:text/csv;charset=utf-8,';
     csvContent += 'VM Name,Time,CPU,Memory,Disk\n';
     selectedVmIds.forEach((id) => {
-      const vm = vmList.find((vm) => vm.id === id);
+      const vm = vmList.find((vm) => vm._id === id);
       const history = historyData[id] || [];
       const aggregatedHistory = aggregateData(history, 20);
       aggregatedHistory.forEach((entry) => {
@@ -159,7 +170,7 @@ function PerformanceChart() {
     document.body.removeChild(link);
   };
 
-  // Layout: Two-column layout with a Sidebar and main content.
+  // Layout styles.
   const mainContainerStyle = {
     marginLeft: sidebarOpen ? '250px' : '0',
     padding: '20px',
@@ -200,7 +211,7 @@ function PerformanceChart() {
             Select VMs:
           </Typography>
           <Select
-            options={vmList.map((vm) => ({ value: vm.id, label: vm.name }))}
+            options={vmList.map((vm) => ({ value: vm._id, label: vm.name }))}
             isMulti
             value={selectedOptions}
             onChange={(selected) => setSelectedOptions(selected)}

@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useContext } from 'react';
 import axios from 'axios';
+import { v4 as uuidv4 } from 'uuid';
 import Sidebar from './Sidebar';
 import { ThemeContext } from '../ThemeContext';
 import { FaBars } from 'react-icons/fa';
@@ -13,10 +14,17 @@ function ManageVMs() {
   const [editedData, setEditedData] = useState({ name: '', os: '' });
   const [sidebarOpen, setSidebarOpen] = useState(true);
 
-  // Fetch VMs from JSON Server
+  // Get token from localStorage
+  const token = localStorage.getItem('authToken');
+  // Base URL for API
+  const API_BASE_URL = process.env.REACT_APP_API_URL || 'https://capstone-ctfhh0dvb6ehaxaw.canadacentral-01.azurewebsites.net';
+
+  // Fetch VMs from API with Authorization header
   const fetchVMs = async () => {
     try {
-      const response = await axios.get('https://capstone-ctfhh0dvb6ehaxaw.canadacentral-01.azurewebsites.net/api/vms');
+      const response = await axios.get(`${API_BASE_URL}/api/vms`, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
       setVMs(response.data);
     } catch (err) {
       console.error('Error fetching VMs:', err);
@@ -33,24 +41,30 @@ function ManageVMs() {
     setNewVM({ ...newVM, [e.target.name]: e.target.value });
   };
 
-  // Add a new VM
+  // Add a new VM, supplying a new _id
   const addVM = async (e) => {
     e.preventDefault();
     try {
-      await axios.post('https://capstone-ctfhh0dvb6ehaxaw.canadacentral-01.azurewebsites.net/api/vms', {
-        ...newVM,
-        cpu: 0,
-        memory: 0,
-        disk: 0,
-        network: {
-          bytes_sent: 0,
-          bytes_recv: 0,
-          packets_sent: 0,
-          packets_recv: 0,
+      const newId = uuidv4();
+      await axios.post(
+        `${API_BASE_URL}/api/vms`,
+        {
+          _id: newId, // Provide a new _id
+          ...newVM,
+          cpu: 0,
+          memory: 0,
+          disk: 0,
+          network: {
+            bytes_sent: 0,
+            bytes_recv: 0,
+            packets_sent: 0,
+            packets_recv: 0,
+          },
+          status: 'Running',
+          last_updated: new Date().toISOString(),
         },
-        status: 'Running',
-        last_updated: new Date().toISOString(),
-      });
+        { headers: { Authorization: `Bearer ${token}` } }
+      );
       setNewVM({ name: '', os: '' });
       fetchVMs();
     } catch (err) {
@@ -60,9 +74,11 @@ function ManageVMs() {
   };
 
   // Delete a VM
-  const deleteVM = async (id) => {
+  const deleteVM = async (_id) => {
     try {
-      await axios.delete(`https://capstone-ctfhh0dvb6ehaxaw.canadacentral-01.azurewebsites.net/api/vms/${id}`);
+      await axios.delete(`${API_BASE_URL}/api/vms/${_id}`, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
       fetchVMs();
     } catch (err) {
       console.error('Error deleting VM:', err);
@@ -72,7 +88,7 @@ function ManageVMs() {
 
   // Start editing a VM
   const startEditing = (vm) => {
-    setEditingVM(vm.id);
+    setEditingVM(vm._id);
     setEditedData({ name: vm.name, os: vm.os });
   };
 
@@ -82,14 +98,18 @@ function ManageVMs() {
   };
 
   // Update the VM
-  const updateVM = async (id) => {
+  const updateVM = async (_id) => {
     try {
-      const vmToUpdate = vms.find((vm) => vm.id === id);
-      await axios.put(`https://capstone-ctfhh0dvb6ehaxaw.canadacentral-01.azurewebsites.net/api/vms/${id}`, {
-        ...vmToUpdate,
-        ...editedData,
-        last_updated: new Date().toISOString(),
-      });
+      const vmToUpdate = vms.find((vm) => vm._id === _id);
+      await axios.put(
+        `${API_BASE_URL}/api/vms/${_id}`,
+        {
+          ...vmToUpdate,
+          ...editedData,
+          last_updated: new Date().toISOString(),
+        },
+        { headers: { Authorization: `Bearer ${token}` } }
+      );
       setEditingVM(null);
       fetchVMs();
     } catch (err) {
@@ -100,7 +120,7 @@ function ManageVMs() {
 
   const toggleSidebar = () => setSidebarOpen((prev) => !prev);
 
-  // Compute overview data for Sidebar (using stats from Alerts page style)
+  // Compute overview data for Sidebar
   const overviewData = {
     totalVMs: vms.length,
     runningVMs: vms.filter((vm) => vm.status === 'Running').length,
@@ -158,7 +178,7 @@ function ManageVMs() {
           <ul style={{ listStyle: 'none', padding: 0 }}>
             {vms.map((vm) => (
               <li
-                key={vm.id}
+                key={vm._id}
                 style={{
                   marginBottom: '10px',
                   padding: '10px',
@@ -170,7 +190,7 @@ function ManageVMs() {
                   alignItems: 'center',
                 }}
               >
-                {editingVM === vm.id ? (
+                {editingVM === vm._id ? (
                   <div>
                     <input
                       type="text"
@@ -187,7 +207,7 @@ function ManageVMs() {
                       style={{ marginRight: '10px', padding: '5px', borderRadius: '5px', border: '1px solid #ccc' }}
                     />
                     <button
-                      onClick={() => updateVM(vm.id)}
+                      onClick={() => updateVM(vm._id)}
                       style={{ padding: '6px 10px', backgroundColor: '#28a745', color: '#fff', border: 'none', borderRadius: '3px', marginRight: '5px', cursor: 'pointer' }}
                     >
                       Save
@@ -201,7 +221,9 @@ function ManageVMs() {
                   </div>
                 ) : (
                   <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', width: '100%' }}>
-                    <span>{vm.name} ({vm.os})</span>
+                    <span>
+                      {vm.name} ({vm.os})
+                    </span>
                     <div>
                       <button
                         onClick={() => startEditing(vm)}
@@ -210,7 +232,7 @@ function ManageVMs() {
                         Edit
                       </button>
                       <button
-                        onClick={() => deleteVM(vm.id)}
+                        onClick={() => deleteVM(vm._id)}
                         style={{ padding: '6px 10px', backgroundColor: '#dc3545', color: '#fff', border: 'none', borderRadius: '3px', cursor: 'pointer' }}
                       >
                         Delete

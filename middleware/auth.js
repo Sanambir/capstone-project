@@ -7,7 +7,7 @@ const authMiddleware = (req, res, next) => {
   const token = authHeader.split(' ')[1];
   try {
     const decoded = jwt.verify(token, process.env.JWT_SECRET);
-    console.log('Decoded JWT:', decoded); // Check that it includes an email
+   // console.log('Decoded JWT:', decoded); // Check that it includes an email
     if (!decoded.email) {
       return res.status(401).json({ message: 'Token missing email information' });
     }

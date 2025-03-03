@@ -8,6 +8,7 @@ import datetime
 import psutil
 import requests
 import getpass
+import threading
 
 # --- Utility: Get or Create a Local Agent ID ---
 def get_agent_id():
@@ -25,7 +26,7 @@ def get_agent_id():
 def login_and_get_token():
     email = input("Enter your email address: ").strip()
     password = getpass.getpass("Enter your password: ")
-    login_url = "http://localhost:3001/api/auth/login"
+    login_url = "https://test.sanambir.com/api/auth/login"
     try:
         response = requests.post(login_url, json={"email": email, "password": password}, headers={"Content-Type": "application/json"})
         if response.status_code in (200, 201):
@@ -46,7 +47,7 @@ def login_and_get_token():
 
 # --- Function to Check if User is Registered ---
 def check_user_exists(email, token):
-    url = "http://localhost:3001/api/users?email=" + email
+    url = "https://test.sanambir.com/api/users?email=" + email
     headers = {
         "Content-Type": "application/json",
         "Authorization": "Bearer " + token
@@ -83,114 +84,105 @@ agent_id = get_agent_id()
 host_name = socket.gethostname()
 os_type = platform.system()
 
-# Login to obtain JWT token automatically.
 USER_EMAIL, USER_TOKEN = login_and_get_token()
 
-# Check if the user is registered.
 if not check_user_exists(USER_EMAIL, USER_TOKEN):
     print("This email is not registered on the dashboard. Please register there first.")
     exit(1)
 else:
     print("User found. Proceeding with monitoring...")
 
-# --- API Endpoint Configuration for VM Records ---
-API_BASE_URL = "http://localhost:3001/api/vms"
-API_URL = f"{API_BASE_URL}/{agent_id}"  # This will be used to get/update the VM record
+# --- API Endpoints ---
+# VM record endpoint for real-time updates.
+API_BASE_URL = "https://test.sanambir.com/api/vms"
+API_URL = f"{API_BASE_URL}/{agent_id}"
+# Performance history endpoint for aggregated data.
+PERFORMANCE_URL = "https://test.sanambir.com/api/performance"
 
-# --- Record Management on the Server ---
-def create_vm_record(initial_data):
-    headers = {"Authorization": "Bearer " + USER_TOKEN}
-    try:
-        response = requests.post(API_BASE_URL, json=initial_data, headers=headers)
-        if response.status_code in (200, 201):
-            created_record = response.json()
-            print("Created record response:", created_record)
-            return created_record
-        else:
-            print("Failed to create VM record:", response.status_code, response.text)
-    except Exception as e:
-        print("Error creating VM record:", e)
-    return None
-
-def ensure_vm_record():
-    global agent_id, API_URL
-    headers = {"Authorization": "Bearer " + USER_TOKEN}
-    try:
-        get_response = requests.get(API_URL, headers=headers)
-        print("GET response status:", get_response.status_code)
-        print("GET response text:", get_response.text)
-        # If record not found (404 or empty), create a new one.
-        if get_response.status_code == 404 or get_response.text.strip() in ["", "{}", "null"]:
-            initial_data = {
-                "_id": agent_id,  # Use _id here
-                "name": host_name,
-                "os": os_type,
-                "cpu": 0,
-                "memory": 0,
-                "disk": 0,
-                "network": {
-                    "bytes_sent": 0,
-                    "bytes_recv": 0,
-                    "packets_sent": 0,
-                    "packets_recv": 0
-                },
-                "status": "Running",
-                "last_updated": get_current_timestamp(),
-                "user": USER_EMAIL
-            }
-            created_record = create_vm_record(initial_data)
-            if created_record:
-                new_id = created_record.get("_id")
-                if new_id and new_id != agent_id:
-                    agent_id = new_id
-                    with open("agent_id.txt", "w") as f:
-                        f.write(agent_id)
-                    API_URL = f"{API_BASE_URL}/{agent_id}"
-                    print(f"Updated agent_id to {agent_id}")
-                else:
-                    print("Using local agent_id:", agent_id)
-        else:
-            print("VM record already exists on the server.")
-    except Exception as e:
-        print("Error ensuring VM record exists:", e)
-
-ensure_vm_record()
-
-# --- Metrics Collection & Reporting ---
+# --- Real-Time Metrics Update ---
 def collect_metrics():
-    metrics = {
-        "_id": agent_id,  # Use _id here as well
-        "name": host_name,
-        "os": os_type,
+    return {
         "cpu": psutil.cpu_percent(interval=1),
         "memory": psutil.virtual_memory().percent,
         "disk": psutil.disk_usage('/').percent,
-        "network": {
-            "bytes_sent": psutil.net_io_counters().bytes_sent,
-            "bytes_recv": psutil.net_io_counters().bytes_recv,
-            "packets_sent": psutil.net_io_counters().packets_sent,
-            "packets_recv": psutil.net_io_counters().packets_recv
-        },
-        "status": "Running",
-        "last_updated": get_current_timestamp(),
-        "user": USER_EMAIL
     }
-    return metrics
 
-def send_metrics():
-    data = collect_metrics()
-    print("Sending metrics data:", data)
-    headers = {"Authorization": "Bearer " + USER_TOKEN}
-    try:
-        response = requests.put(API_URL, json=data, headers=headers)
-        if response.status_code in (200, 201):
-            print("Metrics updated successfully.")
-        else:
-            print("Failed to update metrics:", response.status_code, response.text)
-    except Exception as e:
-        print("Error sending metrics:", e)
-
-if __name__ == '__main__':
+def update_realtime():
     while True:
-        send_metrics()
+        data = collect_metrics()
+        # Include last_updated and other fields if needed.
+        realtime_data = {
+            "_id": agent_id,
+            "name": host_name,
+            "os": os_type,
+            "cpu": data["cpu"],
+            "memory": data["memory"],
+            "disk": data["disk"],
+            "network": {
+                "bytes_sent": psutil.net_io_counters().bytes_sent,
+                "bytes_recv": psutil.net_io_counters().bytes_recv,
+                "packets_sent": psutil.net_io_counters().packets_sent,
+                "packets_recv": psutil.net_io_counters().packets_recv,
+            },
+            "status": "Running",
+            "last_updated": get_current_timestamp(),
+            "user": USER_EMAIL
+        }
+        headers = {"Authorization": "Bearer " + USER_TOKEN}
+        try:
+            response = requests.put(API_URL, json=realtime_data, headers=headers)
+            if response.status_code in (200, 201):
+                print("Real-time metrics updated successfully.")
+            else:
+                print("Failed to update real-time metrics:", response.status_code, response.text)
+        except Exception as e:
+            print("Error updating real-time metrics:", e)
         time.sleep(5)
+
+# --- Aggregated Performance Data ---
+# Aggregation settings
+AGGREGATION_WINDOW = 300  # seconds (5 minutes)
+SAMPLE_INTERVAL = 5       # seconds
+
+def aggregate_and_send():
+    while True:
+        samples = []
+        start_time = time.time()
+        print("Starting aggregation for a 5-minute window...")
+        while time.time() - start_time < AGGREGATION_WINDOW:
+            sample = collect_metrics()
+            samples.append(sample)
+            time.sleep(SAMPLE_INTERVAL)
+        if samples:
+            avgCpu = sum(s['cpu'] for s in samples) / len(samples)
+            avgMemory = sum(s['memory'] for s in samples) / len(samples)
+            avgDisk = sum(s['disk'] for s in samples) / len(samples)
+            aggregatedData = {
+                "vmId": agent_id,
+                "avgCpu": avgCpu,
+                "avgMemory": avgMemory,
+                "avgDisk": avgDisk,
+                "sampleCount": len(samples)
+            }
+            headers = {"Authorization": "Bearer " + USER_TOKEN}
+            try:
+                response = requests.post(PERFORMANCE_URL, json=aggregatedData, headers=headers)
+                if response.status_code in (200, 201):
+                    print("Aggregated performance data sent successfully.")
+                else:
+                    print("Failed to send aggregated performance data:", response.status_code, response.text)
+            except Exception as e:
+                print("Error sending aggregated performance data:", e)
+        else:
+            print("No samples collected for aggregation.")
+
+# --- Run Both Loops Concurrently ---
+realtime_thread = threading.Thread(target=update_realtime, daemon=True)
+aggregation_thread = threading.Thread(target=aggregate_and_send, daemon=True)
+
+realtime_thread.start()
+aggregation_thread.start()
+
+# Keep the main thread alive.
+while True:
+    time.sleep(1)
