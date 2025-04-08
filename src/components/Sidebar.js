@@ -150,6 +150,22 @@ function Sidebar({ overviewData, onClose, style }) {
             Settings
           </Typography>
         </li>
+        <li style={{ marginBottom: '15px' }}>
+          <Typography
+            component={Link}
+            to="/download-script"
+            variant="body1"
+            sx={{
+              color: '#fff',
+              textDecoration: 'none',
+              padding: '10px',
+              display: 'block',
+              borderRadius: '5px',
+            }}
+          >
+            Download Script
+          </Typography>
+        </li>
       </ul>
       <Box sx={{ mt: 'auto' }}>
         <Button variant="contained" color="error" onClick={handleLogout} fullWidth>

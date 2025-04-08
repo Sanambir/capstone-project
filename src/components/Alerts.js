@@ -106,7 +106,7 @@ function Alerts() {
   const indexOfLastRow = currentPage * rowsPerPage;
   const indexOfFirstRow = indexOfLastRow - rowsPerPage;
   const currentRows = unacknowledgedCritical.slice(indexOfFirstRow, indexOfLastRow);
-  const totalPages = Math.ceil(unacknowledgedCritical.length / rowsPerPage);
+  const totalPages = Math.max(Math.ceil(unacknowledgedCritical.length / rowsPerPage), 1);
 
   const handlePageChange = (newPage) => {
     if (newPage > 0 && newPage <= totalPages) setCurrentPage(newPage);
