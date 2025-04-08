@@ -1,4 +1,3 @@
-// src/components/Login.js
 import React, { useState } from 'react';
 import axios from 'axios';
 import { useNavigate, Link } from 'react-router-dom';
@@ -12,12 +11,30 @@ function Login() {
 
   const handleLogin = async () => {
     try {
+      // Attempt login
       const response = await axios.post(
         `${process.env.REACT_APP_API_URL || ''}/api/auth/login`,
         { email, password }
       );
       if (response.data.token) {
         localStorage.setItem('authToken', response.data.token);
+        // If the response includes a username, store it.
+        if (response.data.username) {
+          localStorage.setItem('username', response.data.username);
+        } else {
+          // If not, fetch the user data using the email.
+          const userRes = await axios.get(
+            `${process.env.REACT_APP_API_URL || ''}/api/users?email=${email}`
+          );
+          if (userRes.data && Array.isArray(userRes.data) && userRes.data.length > 0) {
+            localStorage.setItem('username', userRes.data[0].username);
+          } else if (userRes.data && userRes.data.username) {
+            localStorage.setItem('username', userRes.data.username);
+          } else {
+            // Fallback to using the email if username is still not available.
+            localStorage.setItem('username', email);
+          }
+        }
         navigate('/dashboard');
       }
     } catch (err) {

@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useContext } from 'react';
+import React, { useState, useEffect, useContext, useRef } from 'react';
 import { Box, Typography, Button, MenuItem, Select as MuiSelect } from '@mui/material';
 import { FaBars } from 'react-icons/fa';
 import Sidebar from './Sidebar';
@@ -13,6 +13,7 @@ import 'react-circular-progressbar/dist/styles.css';
 ReactModal.setAppElement('#root');
 
 const OFFLINE_THRESHOLD = 15000; // 15 seconds
+const TOAST_THROTTLE_TIME = 60000; // 60 seconds
 
 function isVMOffline(lastUpdated) {
   const now = new Date();
@@ -50,7 +51,9 @@ function Dashboard() {
   const cpuThreshold = Number(localStorage.getItem('cpuThreshold')) || 80;
   const memoryThreshold = Number(localStorage.getItem('memoryThreshold')) || 80;
   const idleThreshold = 20;
+  const lastToastTimeRef = useRef({});
 
+  
   // Fetch user-specific VM data every 5 seconds
   useEffect(() => {
     const fetchData = async () => {
@@ -119,15 +122,20 @@ function Dashboard() {
   const openModal = (vm) => setSelectedVM(vm);
   const closeModal = () => setSelectedVM(null);
 
-  // Trigger toast for critical VMs
+  // Throttle warning toast notifications for critical VMs.
   useEffect(() => {
     filteredData.forEach((vm) => {
       const offline = !vm.last_updated || isVMOffline(vm.last_updated);
       if (!offline && isCritical(vm, cpuThreshold, memoryThreshold)) {
-        toast.error(`VM ${vm.name} is in critical state!`, {
-          position: 'top-right',
-          autoClose: 3000,
-        });
+        const now = Date.now();
+        const lastShown = lastToastTimeRef.current[vm.id] || 0;
+        if (now - lastShown > TOAST_THROTTLE_TIME) {
+          toast.error(`VM ${vm.name} is in critical state!`, {
+            position: 'top-right',
+            autoClose: 3000,
+          });
+          lastToastTimeRef.current[vm.id] = now;
+        }
       }
     });
   }, [filteredData, cpuThreshold, memoryThreshold]);

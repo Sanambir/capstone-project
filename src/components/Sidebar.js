@@ -1,4 +1,4 @@
-import React, { useContext } from 'react';
+import React, { useContext, useEffect, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { ThemeContext } from '../ThemeContext';
 import { FaTimes } from 'react-icons/fa';
@@ -7,6 +7,8 @@ import { Box, Button, Typography } from '@mui/material';
 function Sidebar({ overviewData, onClose, style }) {
   const { theme } = useContext(ThemeContext);
   const navigate = useNavigate();
+  const [username, setUsername] = useState('User');
+
   const backgroundColor = theme === 'light' ? '#343a40' : '#111';
   const cardBackground = theme === 'light' ? '#495057' : '#333';
 
@@ -24,20 +26,34 @@ function Sidebar({ overviewData, onClose, style }) {
     transition: 'all 0.3s ease',
     display: 'flex',
     flexDirection: 'column',
-    ...style, // merge any passed style
+    ...style,
   };
 
   const handleLogout = () => {
     localStorage.removeItem('authToken');
+    localStorage.removeItem('username');
     navigate('/');
   };
+
+  // Instead of decoding JWT, retrieve the username from localStorage.
+  useEffect(() => {
+    const storedUsername = localStorage.getItem('username');
+    if (storedUsername) {
+      setUsername(storedUsername);
+    }
+  }, []);
 
   return (
     <div style={sidebarStyle}>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-        <h3 style={{ marginBottom: '20px' }}>Navigation</h3>
+        <Typography variant="h6" sx={{ mb: 2 }}>
+          Navigation
+        </Typography>
         {onClose && <FaTimes onClick={onClose} style={{ cursor: 'pointer', fontSize: '20px' }} />}
       </div>
+      <Typography variant="subtitle1" sx={{ mb: 2 }}>
+        Welcome, {username}!
+      </Typography>
       {overviewData && (
         <div
           style={{
@@ -48,16 +64,18 @@ function Sidebar({ overviewData, onClose, style }) {
             fontSize: '0.9em',
           }}
         >
-          <p>Total VMs: {overviewData.totalVMs}</p>
-          <p>Running: {overviewData.runningVMs}</p>
-          <p>Critical: {overviewData.criticalVMs}</p>
+          <Typography variant="body2">Total VMs: {overviewData.totalVMs}</Typography>
+          <Typography variant="body2">Running: {overviewData.runningVMs}</Typography>
+          <Typography variant="body2">Critical: {overviewData.criticalVMs}</Typography>
         </div>
       )}
       <ul style={{ listStyle: 'none', padding: 0, flexGrow: 1 }}>
         <li style={{ marginBottom: '15px' }}>
-          <Link
+          <Typography
+            component={Link}
             to="/dashboard"
-            style={{
+            variant="body1"
+            sx={{
               color: '#fff',
               textDecoration: 'none',
               padding: '10px',
@@ -66,12 +84,14 @@ function Sidebar({ overviewData, onClose, style }) {
             }}
           >
             Dashboard
-          </Link>
+          </Typography>
         </li>
         <li style={{ marginBottom: '15px' }}>
-          <Link
+          <Typography
+            component={Link}
             to="/alerts"
-            style={{
+            variant="body1"
+            sx={{
               color: '#fff',
               textDecoration: 'none',
               padding: '10px',
@@ -80,12 +100,14 @@ function Sidebar({ overviewData, onClose, style }) {
             }}
           >
             Alerts
-          </Link>
+          </Typography>
         </li>
         <li style={{ marginBottom: '15px' }}>
-          <Link
+          <Typography
+            component={Link}
             to="/manage"
-            style={{
+            variant="body1"
+            sx={{
               color: '#fff',
               textDecoration: 'none',
               padding: '10px',
@@ -94,12 +116,14 @@ function Sidebar({ overviewData, onClose, style }) {
             }}
           >
             Manage VMs
-          </Link>
+          </Typography>
         </li>
         <li style={{ marginBottom: '15px' }}>
-          <Link
+          <Typography
+            component={Link}
             to="/performance"
-            style={{
+            variant="body1"
+            sx={{
               color: '#fff',
               textDecoration: 'none',
               padding: '10px',
@@ -108,12 +132,14 @@ function Sidebar({ overviewData, onClose, style }) {
             }}
           >
             Performance
-          </Link>
+          </Typography>
         </li>
         <li style={{ marginBottom: '15px' }}>
-          <Link
+          <Typography
+            component={Link}
             to="/settings"
-            style={{
+            variant="body1"
+            sx={{
               color: '#fff',
               textDecoration: 'none',
               padding: '10px',
@@ -122,7 +148,7 @@ function Sidebar({ overviewData, onClose, style }) {
             }}
           >
             Settings
-          </Link>
+          </Typography>
         </li>
       </ul>
       <Box sx={{ mt: 'auto' }}>

@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useContext, useCallback } from 'react';
+import React, { useState, useEffect, useContext, useCallback, useRef } from 'react';
 import axios from 'axios';
 import Sidebar from './Sidebar';
 import { ThemeContext } from '../ThemeContext';
@@ -11,6 +11,7 @@ import { Box, Typography, Button, TextField, Switch } from '@mui/material';
 ReactModal.setAppElement('#root');
 
 const OFFLINE_THRESHOLD = 15000; // 15 seconds
+const TOAST_THROTTLE_TIME = 60000; // 60 seconds
 
 function isVMOffline(lastUpdated) {
   const now = new Date();
@@ -37,6 +38,8 @@ function Alerts() {
   const [selectedAlert, setSelectedAlert] = useState(null);
   const rowsPerPage = 5;
   const emailFrequency = Number(localStorage.getItem('emailFrequency')) || 5; // minutes
+
+  const lastToastTimeRef = useRef({});
 
   const cpuThreshold = Number(localStorage.getItem('cpuThreshold')) || 80;
   const memoryThreshold = Number(localStorage.getItem('memoryThreshold')) || 80;
@@ -186,19 +189,24 @@ function Alerts() {
     setSelectedAlert(vm);
   };
   const closeModal = () => setSelectedAlert(null);
-
-  // Trigger toast for critical alerts.
+  const filteredData = unacknowledgedCritical;
+  // Throttle warning toast notifications for critical VMs.
   useEffect(() => {
-    allCriticalVMs.forEach((vm) => {
+    filteredData.forEach((vm) => {
       const offline = !vm.last_updated || isVMOffline(vm.last_updated);
       if (!offline && isCritical(vm, cpuThreshold, memoryThreshold)) {
-        toast.error(`VM ${vm.name} is in critical state!`, {
-          position: 'top-right',
-          autoClose: 3000,
-        });
+        const now = Date.now();
+        const lastShown = lastToastTimeRef.current[vm.id] || 0;
+        if (now - lastShown > TOAST_THROTTLE_TIME) {
+          toast.error(`VM ${vm.name} is in critical state!`, {
+            position: 'top-right',
+            autoClose: 3000,
+          });
+          lastToastTimeRef.current[vm.id] = now;
+        }
       }
     });
-  }, [allCriticalVMs, cpuThreshold, memoryThreshold]);
+  }, [filteredData, cpuThreshold, memoryThreshold]);
 
   const overviewData = {
     totalVMs: vmData.length,
