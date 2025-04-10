@@ -3,7 +3,7 @@ const mongoose = require('mongoose');
 
 const PerformanceHistorySchema = new mongoose.Schema({
   vmId: { type: String, required: true },
-  date: { type: Date, required: true }, // e.g., start of the day or aggregation window
+  date: { type: Date, default: Date.now }, // Default to current date if not provided
   avgCpu: { type: Number, default: 0 },
   avgMemory: { type: Number, default: 0 },
   avgDisk: { type: Number, default: 0 },

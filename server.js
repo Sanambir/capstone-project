@@ -26,6 +26,7 @@ app.use('/api/auth', authRouter);
 app.use('/api/vms', vmRouter);
 app.use('/api/users', usersRouter);  // if you have this route
 app.use('/api/performance', performanceRouter);  // New route for aggregated performance data
+//app.use('/api/performance', require('./routes/performance'));
 
 // Serve static files from the React app's build folder
 app.use(express.static(path.join(__dirname, 'build')));

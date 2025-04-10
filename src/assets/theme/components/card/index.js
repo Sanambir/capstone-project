@@ -35,7 +35,7 @@ const card = {
       wordWrap: "break-word",
       backgroundColor: white.main,
       backgroundClip: "border-box",
-      border: `${borderWidth[0]} solid ${rgba(black.main, 0.125)}`,
+      border: "none",
       borderRadius: borderRadius.xl,
       boxShadow: md,
       overflow: "visible",

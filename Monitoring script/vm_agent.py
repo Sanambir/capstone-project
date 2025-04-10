@@ -28,7 +28,11 @@ def login_and_get_token():
     password = getpass.getpass("Enter your password: ")
     login_url = "https://test.sanambir.com/api/auth/login"
     try:
-        response = requests.post(login_url, json={"email": email, "password": password}, headers={"Content-Type": "application/json"})
+        response = requests.post(
+            login_url,
+            json={"email": email, "password": password},
+            headers={"Content-Type": "application/json"}
+        )
         if response.status_code in (200, 201):
             data = response.json()
             token = data.get("token")
@@ -55,15 +59,12 @@ def check_user_exists(email, token):
     try:
         response = requests.get(url, headers=headers)
         print("User check response status:", response.status_code)
-        print("User check response text:", response.text)
         if response.status_code == 200:
             if response.text.strip() == "":
                 return False
             try:
                 data = response.json()
-                if isinstance(data, list) and len(data) > 0:
-                    return True
-                if isinstance(data, dict) and data.get("email") == email:
+                if (isinstance(data, list) and len(data) > 0) or (isinstance(data, dict) and data.get("email") == email):
                     return True
                 return False
             except Exception as e:
@@ -93,13 +94,13 @@ else:
     print("User found. Proceeding with monitoring...")
 
 # --- API Endpoints ---
-# VM record endpoint for real-time updates.
+# Real-time update endpoint (PUT)
 API_BASE_URL = "https://test.sanambir.com/api/vms"
 API_URL = f"{API_BASE_URL}/{agent_id}"
-# Performance history endpoint for aggregated data.
+# Aggregated performance endpoint (POST)
 PERFORMANCE_URL = "https://test.sanambir.com/api/performance"
 
-# --- Real-Time Metrics Update ---
+# --- Real-Time Metrics Collection ---
 def collect_metrics():
     return {
         "cpu": psutil.cpu_percent(interval=1),
@@ -110,7 +111,6 @@ def collect_metrics():
 def update_realtime():
     while True:
         data = collect_metrics()
-        # Include last_updated and other fields if needed.
         realtime_data = {
             "_id": agent_id,
             "name": host_name,
@@ -140,7 +140,6 @@ def update_realtime():
         time.sleep(5)
 
 # --- Aggregated Performance Data ---
-# Aggregation settings
 AGGREGATION_WINDOW = 300  # seconds (5 minutes)
 SAMPLE_INTERVAL = 5       # seconds
 
