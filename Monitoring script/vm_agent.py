@@ -94,7 +94,7 @@ else:
     print("User found. Proceeding with monitoring...")
 
 # --- API Endpoints ---
-# Real-time update endpoint (PUT)
+# Real-time update endpoint (PUT) and VM creation endpoint (POST)
 API_BASE_URL = "https://test.sanambir.com/api/vms"
 API_URL = f"{API_BASE_URL}/{agent_id}"
 # Aggregated performance endpoint (POST)
@@ -107,6 +107,38 @@ def collect_metrics():
         "memory": psutil.virtual_memory().percent,
         "disk": psutil.disk_usage('/').percent,
     }
+
+# --- Helper: Create VM Record if Not Found ---
+def create_vm():
+    vm_data = {
+        "_id": agent_id,
+        "name": host_name,
+        "os": os_type,
+        "cpu": 0,
+        "memory": 0,
+        "disk": 0,
+        "network": {
+            "bytes_sent": 0,
+            "bytes_recv": 0,
+            "packets_sent": 0,
+            "packets_recv": 0,
+        },
+        "status": "Running",
+        "last_updated": get_current_timestamp(),
+        "user": USER_EMAIL
+    }
+    headers = {"Authorization": "Bearer " + USER_TOKEN}
+    try:
+        response = requests.post(API_BASE_URL, json=vm_data, headers=headers)
+        if response.status_code in (200, 201):
+            print("VM created successfully in database.")
+            return True
+        else:
+            print("Failed to create VM:", response.status_code, response.text)
+            return False
+    except Exception as e:
+        print("Error creating VM:", e)
+        return False
 
 def update_realtime():
     while True:
@@ -133,6 +165,17 @@ def update_realtime():
             response = requests.put(API_URL, json=realtime_data, headers=headers)
             if response.status_code in (200, 201):
                 print("Real-time metrics updated successfully.")
+            elif response.status_code == 404:
+                print("VM not found, attempting to create a new record...")
+                if create_vm():
+                    print("New VM record created, retrying update...")
+                    response = requests.put(API_URL, json=realtime_data, headers=headers)
+                    if response.status_code in (200, 201):
+                        print("Real-time metrics updated successfully after creation.")
+                    else:
+                        print("Failed to update VM after creation:", response.status_code, response.text)
+                else:
+                    print("Unable to create new VM record.")
             else:
                 print("Failed to update real-time metrics:", response.status_code, response.text)
         except Exception as e:
